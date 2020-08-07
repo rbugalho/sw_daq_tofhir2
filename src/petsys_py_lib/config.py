@@ -4,7 +4,7 @@ import os.path
 import re
 from sys import stderr
 from string import upper
-import tofpet2b, tofpet2c
+import tofhir2
 import bitarray
 import math
 
@@ -146,47 +146,24 @@ class Config:
 		# Apply discriminator baseline calibrations
 		if (self.__loadMask & LOAD_DISC_CALIBRATION) != 0:
 			for portID, slaveID, chipID in asicsConfig.keys():
-				ac = asicsConfig[(portID, slaveID, chipID)]
-				for channelID in range(64):
-					baseline_t, baseline_e = self.getAsicChannelDefaultBaselineSettings((portID, slaveID, chipID, channelID))
-					cc = ac.channelConfig[channelID]
-					cc.setValue("baseline_t", baseline_t)
-					cc.setValue("baseline_e", baseline_e)
+				pass
+				
+		#if (self.__loadMask & LOAD_DISC_SETTINGS) != 0:
+			## Apply discriminator settings and energy acquisition mdoe 
+			#for portID, slaveID, chipID in asicsConfig.keys():
+				#ac = asicsConfig[(portID, slaveID, chipID)]
+				#for channelID in range(len(ac.channelConfig)):
+					#cc = ac.channelConfig[channelID]
+					#vth_t1, vth_t2, vth_e = self.getAsicChannelDefaultThresholds((portID, slaveID, chipID, channelID))
+					#vth_t1 = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", vth_t1)
+					#vth_t2 = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", vth_t2)
+					#vth_e = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_e", vth_e)
+					#cc.setValue("cfg_a3_vth_t1", vth_t1)
+					#cc.setValue("cfg_a3_vth_t2", vth_t2)
+					#cc.setValue("cfg_a3_vth_e", vth_e)
 
-		# Apply discriminator settings and energy acquisition mdoe 
-                for portID, slaveID, chipID in asicsConfig.keys():
-                        ac = asicsConfig[(portID, slaveID, chipID)]
-                        for channelID in range(64):
-                                cc = ac.channelConfig[channelID]
-                                if (self.__loadMask & LOAD_DISC_SETTINGS) != 0:
-                                        vth_t1, vth_t2, vth_e = self.getAsicChannelDefaultThresholds((portID, slaveID, chipID, channelID))
-                                        vth_t1 = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", vth_t1)
-                                        vth_t2 = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", vth_t2)
-                                        vth_e = self.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_e", vth_e)
-                                        cc.setValue("vth_t1", vth_t1)
-                                        cc.setValue("vth_t2", vth_t2)
-                                        cc.setValue("vth_e", vth_e)
+					#cc.setValue("c_tgr_main", 0b11)
 
-                                        cc.setValue("trigger_mode_1", 0b00)
-
-
-				if qdc_mode == "tot":
-					channel_qdc_mode = "tot"
-				elif qdc_mode == "qdc":
-					channel_qdc_mode = "qdc"
-                                else:
-                                        channel_qdc_mode =  self.getAsicChannelQDCMode((portID, slaveID, chipID, channelID))
-                                                               
-                                if channel_qdc_mode == "tot":
-                                        cc.setValue("qdc_mode", 0)
-                                        cc.setValue("intg_en", 0)
-                                        cc.setValue("intg_signal_en", 0)
-                                else:
-                                        cc.setValue("qdc_mode", 1)
-                                        cc.setValue("intg_en", 1)
-                                        cc.setValue("intg_signal_en", 1)
-                              
-                                        
                                         
 		daqd.setAsicsConfig(asicsConfig)
 
@@ -263,7 +240,7 @@ class Config:
 	def mapAsicChannelThresholdToDAC(self, key, vth_str, value):
 		vth_t1, vth_t2, vth_e = self.__asicChannelThresholdCalibrationTable[key]
 		tmp = { "vth_t1" : vth_t1, "vth_t2" : vth_t2, "vth_e" : vth_e }
-		return int( tmp[vth_str] - value)
+		return int( tmp[vth_str] + value)
 		
 
 def toInt(s):
@@ -280,8 +257,8 @@ def parseAsicParameters(configParser):
 		return {}
 	
 	t = {}
-	gk = set(tofpet2b.AsicGlobalConfig().getKeys() + tofpet2c.AsicGlobalConfig().getKeys())
-	ck = set(tofpet2b.AsicChannelConfig().getKeys() + tofpet2c.AsicChannelConfig().getKeys())
+	gk = set(tofhir2.AsicGlobalConfig().getKeys())
+	ck = set(tofhir2.AsicChannelConfig().getKeys())
 	for key, value in configParser.items("asic_parameters"):
 		if key[0:7] == "global.":
 			k = key[7:]

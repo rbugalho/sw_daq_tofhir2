@@ -19,7 +19,7 @@
 using namespace std;
 
 struct CalibrationData{
-	uint64_t eventWord;
+	PETSYS::RawEventWord eventWord;
 	int freq;
 };
 
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	if(r != 8) { fprintf(stderr, "ERROR writing to %s: %d %s\n", fNameRaw, errno, strerror(errno)); exit(1); }
 
 	
-	multiset<uint64_t> calEventSet;  
+	multiset<PETSYS::RawEventWord> calEventSet;  
 	CalibrationData calData;
 
 	bool firstBlock = true;
@@ -166,7 +166,8 @@ int main(int argc, char *argv[])
 			// If acquiring calibration data, insert events into multiset for data compression
 			if(!acqStdMode){
 				for(int i = 0 ; i < nEvents ; i++){
-					uint64_t event = shm->getFrameWord(index, i+2);
+					//PETSYS::RawEventWord event = shm->getFrameWord(index, i+2);
+					PETSYS::RawEventWord event = shm->getRawEventWord(index, i);
 					calEventSet.insert(event);
 				}
 			}
@@ -213,11 +214,13 @@ int main(int argc, char *argv[])
 		if(blockHeader.endOfStep != 0) {
 			// If acquiring calibration data, at the end of each calibration step, write compressed data to disk 
 			if(!acqStdMode){
-				multiset<uint64_t>::iterator eventIt = calEventSet.begin();
+				multiset<PETSYS::RawEventWord>::iterator eventIt = calEventSet.begin();
 		        
 				while(eventIt != calEventSet.end()){
 					calData.freq = calEventSet.count(*eventIt);
 					calData.eventWord = *eventIt;
+					
+					PETSYS::RawEventWord rw(calData.eventWord);
 					r = fwrite(&calData, sizeof(CalibrationData), 1, dataFile);
 					if(r != 1) { fprintf(stderr, "ERROR writing to %s: %d %s\n", fNameRaw, errno, strerror(errno)); exit(1); }
 					r = fflush(dataFile);

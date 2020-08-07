@@ -168,7 +168,7 @@ public:
 			int limit = (hitLimitToWrite < p.nHits) ? hitLimitToWrite : p.nHits;
 			for(int m = 0; m < limit; m++) {
 				Hit &h = *p.hits[m];
-				float Eunit = h.raw->qdcMode ? 1.0 : Tns;
+				float Eunit = 1.0;
 				if (fileType == FILE_ROOT){
 					brStep1 = step1;
 					brStep2 = step2;

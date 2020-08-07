@@ -43,12 +43,13 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 		
 		uint8_t eventFlags = in.valid ? 0x0 : 0x1;
 		
-		if((in.channelID >> 12) == triggerID) {
+		if((in.channelID >> 11) == triggerID) {
 			// This event comes from the trigger
+			// TODO Check that this works with TOFHiR 2 firmware
 			out.time = in.time;
-			out.time -= (in.tfine - 27) * 0.25;
+			out.time -= (in.t1fine - 27) * 0.25;
 			out.timeEnd = out.time;
-			out.energy = (in.efine == 28) ? 1 : -1;
+			out.energy = (in.t2fine == 28) ? 1 : -1;
 			out.region = -1;
 			out.x = out.y = out.z = 0.0;
 			out.xi = out.yi = 0;
@@ -64,80 +65,76 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 			
 			out.time = in.time;
 			if(useTDC) {
-				float q_T = ( -ct.a1 + sqrtf((ct.a1 * ct.a1) - (4.0f * (ct.a0 - in.tfine) * ct.a2))) / (2.0f * ct.a2) ;
-				out.time = in.time - q_T - ct.t0;
+				float q_T1 = ( -ct.a1 + sqrtf((ct.a1 * ct.a1) - (4.0f * (ct.a0 - in.t1fine) * ct.a2))) / (2.0f * ct.a2) ;
+				out.time = in.time - q_T1 - ct.t0;
 				if(ct.a1 == 0) eventFlags |= 0x2;
 			}
-			if(!in.qdcMode) {
-				out.timeEnd = in.timeEnd;
-				if(useTDC) {
-					float q_E = ( -ce.a1 + sqrtf((ce.a1 * ce.a1) - (4.0f * (ce.a0 - in.efine) * ce.a2))) / (2.0f * ce.a2) ;
-					out.timeEnd = in.timeEnd - q_E - ce.t0;
-					if(ce.a1 == 0) eventFlags |= 0x2;
-				}
-				out.energy = out.timeEnd - out.time;
-			}
-			else {
-				
-				out.timeEnd = in.timeEnd;
-				out.energy = in.efine;
 			
-				if(useQDC) {
+			out.timeEnd = in.timeEnd;
+			if(useTDC) {
+				float q_T2 = ( -ce.a1 + sqrtf((ce.a1 * ce.a1) - (4.0f * (ce.a0 - in.t2fine) * ce.a2))) / (2.0f * ce.a2) ;
+				out.timeEnd = in.timeEnd - q_T2 - ce.t0;
+				if(ce.a1 == 0) eventFlags |= 0x2;
+			}
+			out.energy = out.timeEnd - out.time; 
+			
+			out.energy = in.qfine;
+			if(useQDC) {
+			
+				float ti = in.qcoarse - in.t1coarse;
+				if(ti < -256) ti += 1024;
 				
-					float ti = (out.timeEnd - out.time);
-					
-					// Convert ADC into equivalent DC integration time t_eq
-					// Solve P(t_eq) - in.efine = 0 using Newton–Raphson method
-					// 5 iterations are more than enought
-					float p0 = cq.p0 - in.efine;
-					float t_eq = ti;
-					float delta = 0;
-					int iter = 0;
-					do {
-						float f = (cq.p0 - in.efine) +
-							cq.p1 * t_eq + 
-							cq.p2 * t_eq * t_eq + 
-							cq.p3 * t_eq * t_eq * t_eq + 
-							cq.p4 * t_eq * t_eq * t_eq * t_eq +
-							cq.p5 * t_eq * t_eq * t_eq * t_eq * t_eq + 
-							cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
-							cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
-							cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq +
-							cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq;
+				// Convert ADC into equivalent DC integration time t_eq
+				// Solve P(t_eq) - in.efine = 0 using Newton–Raphson method
+				// 5 iterations are more than enought
+				float p0 = cq.p0 - in.qfine;
+				float t_eq = ti;
+				float delta = 0;
+				int iter = 0;
+				do {
+					float f = (cq.p0 - in.qfine) +
+						cq.p1 * t_eq + 
+						cq.p2 * t_eq * t_eq + 
+						cq.p3 * t_eq * t_eq * t_eq + 
+						cq.p4 * t_eq * t_eq * t_eq * t_eq +
+						cq.p5 * t_eq * t_eq * t_eq * t_eq * t_eq + 
+						cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
+						cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
+						cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq +
+						cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq;
 
-						float f_ = cq.p1 +
-							cq.p2 * t_eq * 2 + 
-							cq.p3 * t_eq * t_eq * 3 + 
-							cq.p4 * t_eq * t_eq * t_eq * 4 +
-							cq.p5 * t_eq * t_eq * t_eq * t_eq * 5 + 
-							cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * 6 + 
-							cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 7 + 
-							cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 8 +
-							cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 9;
+					float f_ = cq.p1 +
+						cq.p2 * t_eq * 2 + 
+						cq.p3 * t_eq * t_eq * 3 + 
+						cq.p4 * t_eq * t_eq * t_eq * 4 +
+						cq.p5 * t_eq * t_eq * t_eq * t_eq * 5 + 
+						cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * 6 + 
+						cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 7 + 
+						cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 8 +
+						cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 9;
 
-						delta = - f / f_;
+					delta = - f / f_;
 
-						// Avoid very large steps
-						if(delta < -10.0) delta = -10.0;
-						if(delta > +10.0) delta = +10.0;
+					// Avoid very large steps
+					if(delta < -10.0) delta = -10.0;
+					if(delta > +10.0) delta = +10.0;
 
-						t_eq = t_eq + delta;
-						iter += 1;
-					} while ((fabs(delta) > 0.05) && (iter < 100));
-					
-					// Express energy as t_eq - actual integration time
-					// WARNING Adding 1.0 clock to shift spectrum into positive range
-					// .. needs better understanding.
-					out.energy = t_eq - ti ;
-					if(cq.p1 == 0) eventFlags |= 0x4;
+					t_eq = t_eq + delta;
+					iter += 1;
+				} while ((fabs(delta) > 0.05) && (iter < 100));
 				
-					if(useEnergyCal){
-						float Energy =  cen.p0 * pow(cen.p1,pow(out.energy,cen.p2)) + cen.p3 * out.energy - cen.p0;	 
-						out.energy = Energy;
-						if(cen.p0 == 0) eventFlags |= 0x16;
-					}
-				
+				// Express energy as t_eq - actual integration time
+				// WARNING Adding 1.0 clock to shift spectrum into positive range
+				// .. needs better understanding.
+				out.energy = t_eq - ti ;
+				if(cq.p1 == 0) eventFlags |= 0x4;
+			
+				if(useEnergyCal){
+					float Energy =  cen.p0 * pow(cen.p1,pow(out.energy,cen.p2)) + cen.p3 * out.energy - cen.p0;	 
+					out.energy = Energy;
+					if(cen.p0 == 0) eventFlags |= 0x16;
 				}
+			
 			}
 			
 			out.region = -1;

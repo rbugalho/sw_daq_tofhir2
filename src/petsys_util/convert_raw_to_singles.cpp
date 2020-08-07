@@ -156,7 +156,7 @@ public:
 			Hit &hit = buffer->get(i);
 			if(!hit.valid) continue;
 
-			float Eunit = hit.raw->qdcMode ? 1.0 : Tns;
+			float Eunit = 1.0;
 			
 			if (fileType == FILE_ROOT){
 				brStep1 = step1;

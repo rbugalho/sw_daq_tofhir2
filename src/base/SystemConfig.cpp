@@ -59,23 +59,23 @@ SystemConfig *SystemConfig::fromFile(const char *configFileName, uint64_t mask)
 	
 	config->hasQDCCalibration = false;
 	config->hasEnergyCalibration = false;
-	if ((mask & LOAD_QDC_CALIBRATION) != 0) {
-		char *entry = iniparser_getstring(configFile, "main:qdc_calibration_table", NULL);
-		if(entry == NULL) {
-			fprintf(stderr, "ERROR: qdc_calibration_table not specified in section 'main' of '%s'\n", configFileName);
-			exit(1);
-		}
-		replace_variables(fn, entry, cdir);
-		loadQDCCalibration(config, fn);
-		config->hasQDCCalibration = true;
-
-		entry = iniparser_getstring(configFile, "main:energy_calibration_table", NULL);
-		if(entry != NULL) {
-			replace_variables(fn, entry, cdir);
-			loadEnergyCalibration(config, fn);
-			config->hasEnergyCalibration = true;
-		}	
-	}
+// 	if ((mask & LOAD_QDC_CALIBRATION) != 0) {
+// 		char *entry = iniparser_getstring(configFile, "main:qdc_calibration_table", NULL);
+// 		if(entry == NULL) {
+// 			fprintf(stderr, "ERROR: qdc_calibration_table not specified in section 'main' of '%s'\n", configFileName);
+// 			exit(1);
+// 		}
+// 		replace_variables(fn, entry, cdir);
+// 		loadQDCCalibration(config, fn);
+// 		config->hasQDCCalibration = true;
+// 
+// 		entry = iniparser_getstring(configFile, "main:energy_calibration_table", NULL);
+// 		if(entry != NULL) {
+// 			replace_variables(fn, entry, cdir);
+// 			loadEnergyCalibration(config, fn);
+// 			config->hasEnergyCalibration = true;
+// 		}	
+// 	}
 	
 
 
@@ -202,9 +202,9 @@ static unsigned MAKE_GID(unsigned long portID, unsigned long slaveID, unsigned l
 {
 	unsigned long gChannelID = 0;
 	gChannelID |= channelID;
-	gChannelID |= (chipID << 6);
-	gChannelID |= (slaveID << 12);
-	gChannelID |= (portID << 17);
+	gChannelID |= (chipID << 5);
+	gChannelID |= (slaveID << 11);
+	gChannelID |= (portID << 16);
 	return gChannelID;
 }
 
@@ -235,7 +235,7 @@ void SystemConfig::loadTDCCalibration(SystemConfig *config, const char *fn)
 		config->touchChannelConfig(gChannelID);
 		ChannelConfig &channelConfig = config->getChannelConfig(gChannelID);
 		
-		TacConfig &tacConfig = (bStr == 'T') ? channelConfig.tac_T[tacID] : channelConfig.tac_E[tacID];
+		TacConfig &tacConfig = (bStr == '1') ? channelConfig.tac_T[tacID] : channelConfig.tac_E[tacID];
 		
 		tacConfig.t0 = t0;
 		tacConfig.a0 = a0;
@@ -354,7 +354,6 @@ void SystemConfig::loadChannelMap(SystemConfig *config, const char *fn)
 		channelConfig.x = x;
 		channelConfig.y = y;
 		channelConfig.z = z;
-		
 	}
 	fclose(f);
 }

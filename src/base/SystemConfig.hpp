@@ -46,10 +46,10 @@ namespace PETSYS {
 			int xi, yi;
 			int triggerRegion;
 			float t0;
-			TacConfig tac_T[4];
-			TacConfig tac_E[4];
-			QacConfig qac_Q[4];
-			EnergyConfig eCal[4];
+			TacConfig tac_T[8];
+			TacConfig tac_E[8];
+			QacConfig qac_Q[8];
+			EnergyConfig eCal[8];
 		};
 	       
 

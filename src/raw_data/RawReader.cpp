@@ -225,7 +225,7 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		assert(r == 2*sizeof(uint64_t));
 		currentPosition += r;
 		
-		int N = dataFrame->getNEvents();
+		int N = dataFrame->getFrameSize() - 2;
 		if(N == 0) continue;
 
 		assert((N+2) < MaxRawDataFrameSize);
@@ -263,29 +263,36 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		if(frameLost && N != 0) nFrameLostN += 1;
 		
 		if(frameLost) 
-			nEventsSomeLost += N;
+			nEventsSomeLost += N/2;
 		else
-			nEventsNoLost += N;
+			nEventsNoLost += N/2;
 		
 		// Keep track of frame with all event lost
 		lastFrameWasLost0 = (frameLost && N == 0);
 		lastFrameID = frameID;
 		
-		for(int i = 0; i < N; i++) {
+		for(int i = 0; i < N/2; i++) {
 			RawHit &e = outBuffer->getWriteSlot();
-			e.channelID = dataFrame->getChannelID(i);
-			e.qdcMode = isQDC(e.channelID);
-			e.tacID = dataFrame->getTacID(i);
-			e.frameID = frameID;
-			e.tcoarse = dataFrame->getTCoarse(i);
-			e.tfine = dataFrame->getTFine(i);
-			e.ecoarse = dataFrame->getECoarse(i);
-			e.efine = dataFrame->getEFine(i);
 			
-			e.time = (frameID - currentBufferFirstFrame) * 1024 + e.tcoarse;
-			e.timeEnd = (frameID - currentBufferFirstFrame) * 1024 + e.ecoarse;
+			RawEventWord eventWord = dataFrame->getEventWord(i);
+			
+			e.frameID 	= frameID;
+			e.channelID	= eventWord.getChannelID();
+			e.tacID		= eventWord.getTacID();
+			e.t1coarse	= eventWord.getT1Coarse();
+			e.t1fine	= eventWord.getT1Fine();
+			e.t2coarse	= eventWord.getT2Coarse();
+			e.t2fine	= eventWord.getT2Fine();
+			e.qcoarse	= eventWord.getQCoarse();
+			e.qfine		= eventWord.getQFine();
+			e.triggerBits	= eventWord.getTriggerBits();
+			e.idleTime	= eventWord.getIdleTime();
+			//fprintf(stderr, "DEBUG %hu %hu %hu\n", e.t1coarse, e.t2coarse, e.qcoarse);
+			
+			e.time = (frameID - currentBufferFirstFrame) * 1024 + e.t1coarse;
+			e.timeEnd = (frameID - currentBufferFirstFrame) * 1024 + e.t2coarse;
 			if((e.timeEnd - e.time) < -256) e.timeEnd += 1024;
-				
+			
 			e.valid = true;
 			
 			outBuffer->pushWriteSlot();
@@ -306,7 +313,7 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		fprintf(stderr, " %10lld total\n", step.stepLastFrame - step.stepFirstFrame);
 		fprintf(stderr, " %10lld (%4.1f%%) were missing all data\n", nFrameLost0, 100.0 * nFrameLost0 / (step.stepLastFrame - step.stepFirstFrame));
 		fprintf(stderr, " %10lld (%4.1f%%) were missing some data\n", nFrameLostN, 100.0 * nFrameLost0 / (step.stepLastFrame - step.stepFirstFrame));
-		fprintf(stderr, " events\n");
+		fprintf(stderr, " events frames\n");
 		fprintf(stderr, " %10lld total\n", nEventsNoLost + nEventsSomeLost);
 		long long goodFrames = step.stepLastFrame - step.stepFirstFrame - nFrameLost0 - nFrameLostN;
 		fprintf(stderr, " %10.1f events per frame avergage\n", 1.0 * nEventsNoLost / goodFrames);

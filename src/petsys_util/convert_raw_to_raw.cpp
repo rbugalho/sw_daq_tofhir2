@@ -36,10 +36,16 @@ private:
 	long long	brFrameID;
 	unsigned int	brChannelID;
 	unsigned short	brTacID;
-	unsigned short	brTCoarse;
-	unsigned short	brECoarse;
-	unsigned short	brTFine;
-	unsigned short	brEFine;
+	unsigned short	brT1Coarse;
+	unsigned short	brT2Coarse;
+	unsigned short	brQCoarse;
+	unsigned short	brT1Fine;
+	unsigned short	brT2Fine;
+	unsigned short	brQFine;
+	unsigned short	brTIdle;
+	unsigned short	brTgrBits;
+
+	
 	
 
 
@@ -61,10 +67,14 @@ public:
 			hData->Branch("frameID", &brFrameID, bs);
 			hData->Branch("channelID", &brChannelID, bs);
 			hData->Branch("tacID", &brTacID, bs);
-			hData->Branch("tcoarse", &brTCoarse, bs);
-			hData->Branch("ecoarse", &brECoarse, bs);
-			hData->Branch("tfine", &brTFine, bs);
-			hData->Branch("efine", &brEFine, bs);
+			hData->Branch("t1coarse", &brT1Coarse, bs);
+			hData->Branch("t1fine", &brT1Fine, bs);
+			hData->Branch("t2coarse", &brT2Coarse, bs);
+			hData->Branch("t2fine", &brT2Fine, bs);
+			hData->Branch("qcoarse", &brQCoarse, bs);
+			hData->Branch("qfine", &brQFine, bs);
+			hData->Branch("tidle", &brTIdle, bs);
+			hData->Branch("tgrbits", &brTgrBits, bs);
 			
 			hIndex = new TTree("index", "Step Index", 2);
 			hIndex->Branch("step1", &brStep1, bs);
@@ -119,18 +129,22 @@ public:
 				brFrameID = hit.frameID;
 				brChannelID = hit.channelID;
 				brTacID = hit.tacID;
-				brTCoarse = hit.tcoarse;
-				brECoarse = hit.ecoarse;
-				brTFine = hit.tfine;
-				brEFine = hit.efine;
+				brT1Coarse = hit.t1coarse;
+				brT1Fine = hit.t1fine;
+				brT2Coarse = hit.t2coarse;
+				brT2Fine = hit.t2fine;
+				brQCoarse = hit.qcoarse;
+				brQFine = hit.qfine;
+				brTIdle = hit.idleTime;
+				brTgrBits = hit.triggerBits;
 				hData->Fill();
 			}
 			else {
-				fprintf(dataFile, "%lld\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\n",
+				fprintf(dataFile, "%lld\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\n",
 					hit.frameID,
 					hit.channelID, hit.tacID,
-					hit.tcoarse, hit.ecoarse,
-					hit.tfine, hit.efine
+					hit.t1coarse, hit.t2coarse, hit.qcoarse,
+					hit.t1fine, hit.t2fine, hit.qfine
 				);
 			}
 		}

@@ -32,11 +32,12 @@ EventBuffer<Coincidence> * CoincidenceGrouper::handleEvents(EventBuffer<GammaPho
 	for(unsigned i = 0; i < N; i++) {
 		GammaPhoton &photon1 = inBuffer->get(i);
 		for(unsigned j = i+1; j < N; j++) {
-			GammaPhoton &photon2 = inBuffer->get(j);			
+			GammaPhoton &photon2 = inBuffer->get(j);
+			//fprintf(stderr, "%g %g -> %g\n", photon1.time, photon2.time, photon1.time-photon2.time);
 			if ((photon2.time - photon1.time) > (overlap + cWindow)) break;
-			
+			//fprintf(stderr, "A\n");
 			if(!systemConfig->isCoincidenceAllowed(photon1.region, photon2.region)) continue;
-			
+			//fprintf(stderr, "B\n");
 			if(fabs(photon1.time - photon2.time) <= cWindow) {
 				Coincidence &c = outBuffer->getWriteSlot();
 				c.nPhotons = 2;

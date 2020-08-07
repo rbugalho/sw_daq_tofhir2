@@ -43,7 +43,7 @@ def main():
 			trigger_region = 4 * trigger_port + quadrant
 			region_list.append(trigger_region)
 			for asicID in range(4*quadrant, 4*quadrant + 4):
-				for channelID in range(64):
+				for channelID in range(32):
 					channelOutputFile.write("%(portID)s\t%(slaveID)d\t%(asicID)d\t%(channelID)d\t%(trigger_region)d\t0\t0\t0.0\t0.0\t0.0\n" % locals())
 					
 			triggerOutputFile.write("%(trigger_region)d\t%(trigger_region)d\tM\n" % locals())

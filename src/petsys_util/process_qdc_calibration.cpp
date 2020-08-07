@@ -38,32 +38,32 @@ using namespace PETSYS;
 #define BUFFER_SIZE	4096
 
 struct RawCalibrationData{
-	uint64_t eventWord;
+	unsigned __int128 eventWord;
 	int freq;
 };
 
 struct CalibrationData{
 	unsigned long gid;
-	unsigned short tcoarse;
-	unsigned short tfine;
-	unsigned short ecoarse;
+	unsigned short t1coarse;
+	unsigned short t1fine;
+	unsigned short qcoarse;
 	unsigned short qfine;	
 	int freq;
 	bool saturation;
 	
 	float getTime (SystemConfig *config){
 		float time, q_T;
-		unsigned channelID = (gid >> 2);
-		unsigned tacID = (gid >> 0) % 4;
+		unsigned channelID = (gid >> 3);
+		unsigned tacID = (gid >> 0) % 8;
 		SystemConfig::ChannelConfig &cc = config->getChannelConfig(channelID);
 		SystemConfig::TacConfig &ct = cc.tac_T[tacID];
-		float delta = (ct.a1 * ct.a1) - (4.0f * (ct.a0 - tfine) * ct.a2);
+		float delta = (ct.a1 * ct.a1) - (4.0f * (ct.a0 - t1fine) * ct.a2);
 		if(delta<0){
-			time = tcoarse;
+			time = t1coarse;
 		}
 		else{
 			q_T =  ( -ct.a1 + sqrtf(delta) ) / (2.0f * ct.a2) ;	
-		        time = tcoarse - q_T - ct.t0;
+		        time = t1coarse - q_T - ct.t0;
 		}
 		return time;
 	};
@@ -72,7 +72,7 @@ struct CalibrationData{
 
 // TODO Put this somewhere else
 const unsigned long MAX_N_ASIC = 32*32*64;
-const unsigned long MAX_N_QAC = MAX_N_ASIC * 64 * 4;
+const unsigned long MAX_N_QAC = MAX_N_ASIC * 32 * 8;
 
 struct CalibrationEntry {
 	float p0;
@@ -191,8 +191,8 @@ void sortData(char *inputFilePrefix, char *tmpFilePrefix)
 	
 	printf("Sorting data into temporary files...\n");
 	fflush(stdout);
-	int maxChannelsPerWorker = 64;
-	int maxWorkFiles = int(ceil(float(MAX_N_ASIC*64)/maxChannelsPerWorker));
+	int maxChannelsPerWorker = 32;
+	int maxWorkFiles = int(ceil(float(MAX_N_ASIC*32)/maxChannelsPerWorker));
 	
 	char **tmpDataFileNames = new char *[maxWorkFiles];
 	FILE **tmpDataFiles = new FILE *[maxWorkFiles];
@@ -244,17 +244,17 @@ void sortData(char *inputFilePrefix, char *tmpFilePrefix)
 			RawEventWord eWord(tmpRawCalDataBlock[i].eventWord);   
 			unsigned gChannelID = eWord.getChannelID();
 			unsigned tacID = eWord.getTacID();	       
-			unsigned gAsicID = (gChannelID >> 6);
-			unsigned long gid = (gChannelID << 2) | tacID;
+			unsigned gAsicID = (gChannelID >> 5);
+			unsigned long gid = (gChannelID << 3) | tacID;
 
 			maxgAsicID = (maxgAsicID > gAsicID) ? maxgAsicID : gAsicID;
 
 			FILE * f = tmpDataFiles[gAsicID];
 			if(f == NULL) {
 				// We haven't opened this file yet.
-				unsigned chipID = (gChannelID >> 6) % 64;
-				unsigned slaveID = (gChannelID >> 12) % 32;
-				unsigned portID = (gChannelID >> 17) % 32;
+				unsigned chipID = (gChannelID >> 5) % 64;
+				unsigned slaveID = (gChannelID >> 11) % 32;
+				unsigned portID = (gChannelID >> 16) % 32;
 				char *fn = new char[1024];
 				sprintf(fn, "%s_%02u_%02u_%02u_data.tmp", tmpFilePrefix, portID, slaveID, chipID);
 				f = fopen(fn, "w");
@@ -270,10 +270,10 @@ void sortData(char *inputFilePrefix, char *tmpFilePrefix)
 			CalibrationData calData;
 	        
 			calData.gid =  gid;
-			calData.tcoarse = eWord.getTCoarse();
-			calData.ecoarse = eWord.getECoarse();
-			calData.tfine = eWord.getTFine();
-			calData.qfine = eWord.getEFine();			
+			calData.t1coarse = eWord.getT1Coarse();
+			calData.qcoarse = eWord.getQCoarse();
+			calData.t1fine = eWord.getT1Fine();
+			calData.qfine = eWord.getQFine();			
 			calData.freq = tmpRawCalDataBlock[i].freq;       	
 			calData.saturation = (step1 == -1);
 			fwrite(&calData, sizeof(CalibrationData), 1, f);	
@@ -311,8 +311,8 @@ void calibrateAsic(
 	TFile *rootFile = new TFile(fName, "RECREATE");
 
 	
-	unsigned long gidStart = gAsicID * 64 * 4;
-	unsigned long gidEnd = (gAsicID+1) * 64 * 4;
+	unsigned long gidStart = gAsicID * 32 * 8;
+	unsigned long gidEnd = (gAsicID+1) * 32 * 8;
 	unsigned long nQAC = gidEnd - gidStart;
 
 	// Build the histograms
@@ -324,8 +324,8 @@ void calibrateAsic(
 	}
 	
 	for(unsigned gid = gidStart; gid < gidEnd; gid++) {
-		unsigned tacID = (gid >> 0) % 4;
-		unsigned channelID = (gid >> 2) % 64;
+		unsigned tacID = (gid >> 0) % 8;
+		unsigned channelID = (gid >> 3) % 32;
 		unsigned chipID = (gid >> 8) % 64;
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;
@@ -351,8 +351,8 @@ void calibrateAsic(
 			maxADC[calData.gid-gidStart] = (maxADC[calData.gid-gidStart] > calData.qfine) ? maxADC[calData.gid-gidStart] : calData.qfine;
 			if(calData.saturation) continue;
 
-			if((calData.ecoarse - calData.tcoarse) < -256) calData.ecoarse += 1024;  
-			float ti = calData.ecoarse - calData.getTime(config);
+			if((calData.qcoarse - calData.t1coarse) < -256) calData.qcoarse += 1024;  
+			float ti = calData.qcoarse - calData.getTime(config);
 		
 			for(int j = 0; j < calData.freq; j++)
 				hFine2_list[calData.gid-gidStart]->Fill(ti, calData.qfine);
@@ -364,8 +364,8 @@ void calibrateAsic(
 	clock_gettime(CLOCK_REALTIME, &t1);
 	
 	for(unsigned gid = gidStart; gid < gidEnd; gid++) {
-		unsigned tacID = (gid >> 0) % 4;
-		unsigned channelID = (gid >> 2) % 64;
+		unsigned tacID = (gid >> 0) % 8;
+		unsigned channelID = (gid >> 3) % 32;
 		unsigned chipID = (gid >> 8) % 64;
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;
@@ -383,24 +383,27 @@ void calibrateAsic(
 		sprintf(hName, "c_%02d_%02d_%02d_%02d_%d_pFine", portID, slaveID, chipID, channelID, tacID);
 		TProfile *pFine = hFine2->ProfileX(hName, 1, -1, "s");
 		
-		float yMin = pFine->GetMinimum(2);
-		int bMin = pFine->FindFirstBinAbove(yMin);
-		bMin = (bMin > 1) ? bMin : 1;
-		float xMin = pFine->GetBinLowEdge(bMin);
-
-		float yMax = pFine->GetMaximum() * 0.97;
-		int bMax = pFine->FindFirstBinAbove(yMax);
-		bMax = (bMax < (nBins-1)) ? bMax : (nBins-1);
-		float xMax = pFine->GetBinLowEdge(bMax+1);
-		
-		// Integration limit with 100 counts remaining
-		float yMax100 = maxADC[gid-gidStart] - 100;
-		int bMax100 = pFine->FindFirstBinAbove(yMax100);
-		if(bMax100 == -1) bMax100 = nBins;
-		bMax100 = (bMax100 > 1) ? bMax100 : 1;
-		bMax100 = (bMax100 < (nBins-1)) ? bMax100 : (nBins-1);
-		fprintf(stderr, "limits %d %d %d\n", bMin, bMax, bMax100);
-		float xMax100 = pFine->GetBinLowEdge(bMax100+1);
+// 		float yMin = pFine->GetMinimum(2);
+// 		int bMin = pFine->FindFirstBinAbove(yMin);
+// 		bMin = (bMin > 1) ? bMin : 1;
+// 		float xMin = pFine->GetBinLowEdge(bMin);
+// 
+// 		float yMax = pFine->GetMaximum() * 0.97;
+// 		int bMax = pFine->FindFirstBinAbove(yMax);
+// 		bMax = (bMax < (nBins-1)) ? bMax : (nBins-1);
+// 		float xMax = pFine->GetBinLowEdge(bMax+1);
+// 		
+// 		// Integration limit with 100 counts remaining
+// 		float yMax100 = maxADC[gid-gidStart] - 100;
+// 		int bMax100 = pFine->FindFirstBinAbove(yMax100);
+// 		if(bMax100 == -1) bMax100 = nBins;
+// 		bMax100 = (bMax100 > 1) ? bMax100 : 1;
+// 		bMax100 = (bMax100 < (nBins-1)) ? bMax100 : (nBins-1);
+// 		fprintf(stderr, "limits %d %d %d\n", bMin, bMax, bMax100);
+// 		float xMax100 = pFine->GetBinLowEdge(bMax100+1);
+// 		
+// 		xMin = 1;
+// 		xMax = 
 
 		// Clear entry 
 		CalibrationEntry &entry = calibrationTable[gid];
@@ -417,7 +420,7 @@ void calibrateAsic(
 
 		entry.xMin = xMin;
 		entry.xMax = xMax;
-		entry.xMax100 = xMax100;
+		entry.xMax100 = xMax;
 		entry.valid = false;
 
 		
@@ -468,8 +471,8 @@ void calibrateAsic(
 		CalibrationEntry &entry = calibrationTable[gid];
 		if(!entry.valid) continue;
 		
-		unsigned tacID = (gid >> 0) % 4;
-		unsigned channelID = (gid >> 2) % 64;
+		unsigned tacID = (gid >> 0) % 8;
+		unsigned channelID = (gid >> 3) % 32;
 		unsigned chipID = (gid >> 8) % 64;
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;
@@ -494,7 +497,7 @@ void calibrateAsic(
 
 			CalibrationEntry &entry = calibrationTable[calData.gid];
 			if(!entry.valid) continue;
-			float ti = calData.ecoarse - calData.getTime(config);
+			float ti = calData.qcoarse - calData.getTime(config);
 			if(ti < entry.xMin || ti > entry.xMax) continue;
 			
 			float qExpected = entry.p0
@@ -532,9 +535,9 @@ void calibrateAsic(
 
 	TCanvas *c = new TCanvas();
 	c->Divide(2, 2);
-	TH1F *hCounts = new TH1F("hCounts", "", 64*4, 0, 64);
+	TH1F *hCounts = new TH1F("hCounts", "", 32*8, 0, 32);
 	TH1S *hResolution = new TH1S("hResolution", "QDC resolution histograms", 256, 0, 5.0);
-	TGraphErrors *gResolution = new TGraphErrors(64*4);
+	TGraphErrors *gResolution = new TGraphErrors(32*8);
 	gResolution->SetName("gResolution");
 	int gResolutionNPoints = 0;
 	
@@ -542,15 +545,15 @@ void calibrateAsic(
 	TH1F *hMax100Time = new TH1F("hMax100Time", "Integration time", 128, 0, 430);
 
 	TCanvas *tmp1 = new TCanvas();
-	for(unsigned long channelID = 0; channelID < 64; channelID++) {
-		for(unsigned long tacID = 0; tacID < 4; tacID++) {
-			unsigned long gid = gidStart | (channelID << 2) | tacID;
+	for(unsigned long channelID = 0; channelID < 32; channelID++) {
+		for(unsigned long tacID = 0; tacID < 8; tacID++) {
+			unsigned long gid = gidStart | (channelID << 3) | tacID;
 			CalibrationEntry &entry = calibrationTable[gid];
 			if(!entry.valid) continue;
 
 			TH1S *hControlE = hControlE_list[gid-gidStart];
 			double counts = hControlE->GetEntries();
-			hCounts->SetBinContent(1 + 4*channelID + tacID, counts);
+			hCounts->SetBinContent(1 + 8*channelID + tacID, counts);
 			
 			if(hControlE->GetEntries() < 1000) continue;
 			hControlE->Fit("gaus", "Q");
@@ -559,7 +562,7 @@ void calibrateAsic(
 				
 			float sigma = fit->GetParameter(2);
 			float sigmaError = fit->GetParError(2);
-			gResolution->SetPoint(gResolutionNPoints, channelID + 0.25*tacID, sigma);
+			gResolution->SetPoint(gResolutionNPoints, channelID + 0.125*tacID, sigma);
 			gResolution->SetPointError(gResolutionNPoints, 0, sigmaError);
 			hResolution->Fill(sigma);
 			
@@ -580,7 +583,7 @@ void calibrateAsic(
 	gResolution->Draw("AP");
 	gResolution->SetTitle("QDC resolution");
 	gResolution->GetXaxis()->SetTitle("Channel");
-	gResolution->GetXaxis()->SetRangeUser(0, 64);
+	gResolution->GetXaxis()->SetRangeUser(0, 32);
 	gResolution->GetYaxis()->SetTitle("Resolution (ADC RMS)");
 	gResolution->GetYaxis()->SetRangeUser(0, 5.0);
 	gResolution->Draw("AP");
@@ -718,8 +721,8 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
 	for(unsigned long gid = 0; gid < MAX_N_QAC; gid++) {
 		CalibrationEntry &entry = calibrationTable[gid];
 		if(!entry.valid) continue;
-		unsigned tacID = (gid >> 0) % 4;
-		unsigned channelID = (gid >> 2) % 64;
+		unsigned tacID = (gid >> 0) % 8;
+		unsigned channelID = (gid >> 3) % 32;
 		unsigned chipID = (gid >> 8) % 64;
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;

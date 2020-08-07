@@ -23,7 +23,7 @@ void displayUsage()
 
 int main(int argc, char *argv[])
 {
-	char *inputFilePrefix = NULL;
+	char *input1FilePrefix = NULL;
 	bool suppressEmpty = false;
 	bool statsOnly = false;
 	
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 		else if(c != 0) {
 			// Short arguments
 			switch(c) {
-			case 'i':	inputFilePrefix = optarg; break;
+			case 'i':	input1FilePrefix = optarg; break;
 			default:	displayUsage(); exit(1);
 			}
 		}
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	
 	char fName[1024];
 	// Open the data index file
-	sprintf(fName, "%s.idxf", inputFilePrefix);
+	sprintf(fName, "%s.idxf", input1FilePrefix);
 	FILE *indexFile = fopen(fName, "r");
 	if(indexFile == NULL) {
 			fprintf(stderr, "Could not open '%s' for reading: %s\n", fName, strerror(errno));
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 	}
 	
 	// Open the data file
-	sprintf(fName, "%s.rawf", inputFilePrefix);
+	sprintf(fName, "%s.rawf", input1FilePrefix);
 	FILE *dataFile = fopen(fName, "r");
 	if(dataFile == NULL) {
 		fprintf(stderr, "Could not open '%s' for reading: %s\n", fName, strerror(errno));
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 		
 		bool firstFrame = true;
 		long long unsigned lastFrameID = 0;
-		bool lastFrameLost = false;
+		bool last1FrameLost = false;
 		
 		unsigned long long sumDataFrames = 0;
 		unsigned long long sumDataFramesLost = 0;
@@ -104,9 +104,9 @@ int main(int argc, char *argv[])
 			 */
 			int framesCompacted = firstFrame ? 0 : frameID - lastFrameID - 1;
 			sumDataFrames += framesCompacted;
-			sumDataFramesLost += lastFrameLost ? framesCompacted : 0;
+			sumDataFramesLost += last1FrameLost ? framesCompacted : 0;
 			lastFrameID = frameID;
-			lastFrameLost = frameLost;
+			last1FrameLost = frameLost;
 			
 			sumDataFrames += 1;
 			sumDataFramesLost += frameLost ? 1 : 0;
@@ -121,16 +121,19 @@ int main(int argc, char *argv[])
 			
 			for (int i = 0; i < nEvents; i++) {
 
-				unsigned long channelID = tmpRawDataFrame->getChannelID(i);
-				unsigned long tacID = tmpRawDataFrame->getTacID(i);
-				unsigned long tCoarse = tmpRawDataFrame->getTCoarse(i);
-				unsigned long eCoarse = tmpRawDataFrame->getECoarse(i);
-				unsigned long tFine = tmpRawDataFrame->getTFine(i);
-				unsigned long eFine = tmpRawDataFrame->getEFine(i);
+				unsigned int channelID = tmpRawDataFrame->getEventWord(i).getChannelID();
+				unsigned long tacID = tmpRawDataFrame->getEventWord(i).getTacID();
+				unsigned long t1Coarse = tmpRawDataFrame->getEventWord(i).getT1Coarse();
+				unsigned long t2Coarse = tmpRawDataFrame->getEventWord(i).getT2Coarse();
+				unsigned long qCoarse = tmpRawDataFrame->getEventWord(i).getQCoarse();
+				unsigned long t1Fine = tmpRawDataFrame->getEventWord(i).getT1Fine();
+				unsigned long t2Fine = tmpRawDataFrame->getEventWord(i).getT2Fine();
+				unsigned long qFine = tmpRawDataFrame->getEventWord(i).getQFine();
 				
-				printf("%04d %016llx", i+2,  tmpRawDataFrame->data[i+2]);
+				
+				printf("%04d %016llx %016llx", 2+2*i,  tmpRawDataFrame->data[2+2*i+0], tmpRawDataFrame->data[2+2*i+1]);
 				printf(" ChannelID: (%02d %02d %02d %02d)", (channelID >> 17) % 32, (channelID >> 12) % 32, (channelID >> 6) % 64, (channelID % 64));
-				printf(" TacID: %d TCoarse: %4d TFine: %4d ECoarse: %4d EFine: %4d", tacID, tCoarse, tFine, eCoarse, eFine);
+				printf(" TacID: %d T1C: %4d T2C: %4d QC %4d T1F %4d T2F %4d QF %4d", tacID, t1Coarse, t2Coarse, qCoarse, t1Fine, t2Fine, qFine);
 				printf("\n");
 			}
 			

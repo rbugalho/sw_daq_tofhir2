@@ -35,37 +35,32 @@ if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileName
 asicsConfig = daqd.getAsicsConfig()
 # Prepare all channels for TDCA but disable actual triggering...
 for ac in asicsConfig.values():
+	ac.globalConfig.setValue("c_ext_tp_en", 1)
 	for cc in ac.channelConfig:
-		## Set simplest trigger_mode_2_* setting
-		cc.setValue("trigger_mode_2_t", 0b00)
-		cc.setValue("trigger_mode_2_e", 0b000)
-		cc.setValue("trigger_mode_2_q", 0b00)
-		cc.setValue("trigger_mode_2_b", 0b000)
-
 		# Disable channel from triggering.
 		# Will selectively enable channels below
-		cc.setValue("trigger_mode_1", 0b11)
+		cc.setValue("c_tgr_main", 0b11)
 	
 
 
-simultaneousChannels = 64
+simultaneousChannels = 32
 
 # Clamp down simulatenous channels due to system limitations
 # 126/16 -- GbE interface: 126 events/frame with FEB/D, 16 ASICs per FEB/D
 # 1024/80 -- ASIC TX: 1024 clock/frame (x1 SDR), 80 bits per event
-simultaneousChannels = min([simultaneousChannels, 126/16, 1024/80])
-simultaneousChannels = 1
+simultaneousChannels = min([simultaneousChannels, 63/16, 1024/80])
+simultaneousChannels = 15
 
-channelStep = int(math.ceil(64.0/simultaneousChannels))
+channelStep = int(math.ceil(32.0/simultaneousChannels))
 
 for firstChannel in range(0, channelStep):
-	activeChannels = [ channel for channel in range(firstChannel, 64, channelStep) ]
+	activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
 	activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
 	# Enable triggering for active channels
 	cfg = deepcopy(asicsConfig)
 	for ac in cfg.values():
 		for channel in activeChannels:
-			ac.channelConfig[channel].setValue("trigger_mode_1", 0b01)
+			ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
 	daqd.setAsicsConfig(cfg)
         
 	for i in range(0, nBins):

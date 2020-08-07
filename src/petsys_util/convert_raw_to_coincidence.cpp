@@ -194,8 +194,8 @@ public:
 				Hit &h1 = *p1.hits[m];
 				Hit &h2 = *p2.hits[n];
 				
-				float Eunit1 = h1.raw->qdcMode ? 1.0 : Tns;
-				float Eunit2 = h2.raw->qdcMode ? 1.0 : Tns;
+				float Eunit1 = 1.0;
+				float Eunit2 = 1.0;
 
 				if (fileType == FILE_ROOT){
 					brStep1 = step1;

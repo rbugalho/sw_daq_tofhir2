@@ -7,6 +7,7 @@ import argparse
 from time import sleep, time
 import ROOT
 from sys import stdout
+from shutil import copyfile
 
 parser = argparse.ArgumentParser(description='Acquire data for threshold calibration')
 parser.add_argument("--config", type=str, required=True, help="Configuration file")
@@ -22,18 +23,19 @@ systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_PREBD)
 asicsConfig = daqd.getAsicsConfig()
 
 
-COUNT_MAX = 1.0 * (2**22)
+COUNTER_SETTING = 2**22
+COUNT_MAX = 1.0 * COUNTER_SETTING
 T = COUNT_MAX * (1 / daqd.getSystemFrequency())
 
 
 thresholdList = [ 
-	(0,  "vth_t1", "baseline_t" ),
-	(1,  "vth_t2", "baseline_t" ),
-	(2,  "vth_e", "baseline_e")
+	(0,  "cfg_a3_vth_t1", "baseline_t" ),
+	(1,  "cfg_a3_vth_t2", "baseline_t" ),
+	(2,  "cfg_a3_vth_e", "baseline_e")
 ]
 
 activeAsics = daqd.getActiveAsics()
-activeChannels = [ (portID, slaveID, chipID, channelID) for channelID in range(64) for portID, slaveID, chipID in activeAsics ]
+activeChannels = [ (portID, slaveID, chipID, channelID) for channelID in range(32) for portID, slaveID, chipID in activeAsics ]
 
 # Adjust baseline
 
@@ -41,84 +43,74 @@ for (portID, slaveID, chipID), ac in asicsConfig.items():
 	if not ac: continue
 	gc = ac.globalConfig
 	
-	if daqd.getAsicSubtype(portID, slaveID, chipID) == "2B":
-		COUNTER_SETTING = 0x4
-	else:
-		COUNTER_SETTING = 0b110
-
-	print portID, slaveID, chipID, COUNTER_SETTING
 	
-	gc.setValue("counter_en", 0b1)
-	gc.setValue("counter_period", COUNTER_SETTING)
+	gc.setValue("c_counter_en", 0b1)
+	gc.setValue("c_counter_t", COUNTER_SETTING)
 	for cc in ac.channelConfig:
-		cc.setValue("trigger_mode_1", 0)
-		cc.setValue("counter_mode", 0xF)
-		cc.setValue("trigger_b_latched", 0)
+		cc.setValue("c_tgr_main", 0)
+		cc.setValue("c_count", 0x2)
+		cc.setValue("c_latch_B", 0)
 		
 
-counter_sharing = 1
-asicSubTypes = set([ daqd.getAsicSubtype(portID, slaveID, chipID) for portID, slaveID, chipID in asicsConfig.keys() ])
-if "2B" in asicSubTypes:
-	counter_sharing = 8
-	
-print "counter_sharing  = %(counter_sharing)d" % locals()
 
-print "Adjusting baseline"
-for thresholdIndex, thresholdName, baselineName in thresholdList:
-	print thresholdIndex, thresholdName, baselineName
+##print "Adjusting baseline"
+##for thresholdIndex, thresholdName, baselineName in thresholdList:
+	##print thresholdIndex, thresholdName, baselineName
 
-	N_ITERATIONS = 0
-	while N_ITERATIONS < 20:
-		print baselineName, "ITERATION %d" % N_ITERATIONS
+	##N_ITERATIONS = 0
+	##while N_ITERATIONS < 20:
+		##print baselineName, "ITERATION %d" % N_ITERATIONS
 
-		for ac in asicsConfig.values():
-			for cc in ac.channelConfig:
-				cc.setValue("vth_t1", 0)
-				cc.setValue("vth_t2", 0)
-				cc.setValue("vth_e", 0)
-				cc.setValue("trigger_mode_2_b", thresholdIndex)
-				cc.setValue(thresholdName, 61)
-		daqd.setAsicsConfig(asicsConfig)
-		sleep(1 * T)
-		sleep(counter_sharing * T)
+		##for ac in asicsConfig.values():
+			##for cc in ac.channelConfig:
+				##cc.setValue("cfg_a3_vth_t1", 63)
+				##cc.setValue("cfg_a3_vth_t2", 63)
+				##cc.setValue("cfg_a3_vth_e", 63)
+				##cc.setValue("trigger_mode_2_b", thresholdIndex)
+				##cc.setValue(thresholdName, 61)
+		##daqd.setAsicsConfig(asicsConfig)
+		##sleep(1 * T)
+		##sleep(counter_sharing * T)
 
-		count_high = {}
-		for portID, slaveID, chipID, channelID in activeChannels:
-			v = daqd.read_mem_ctrl(portID, slaveID, 5, 24, 64*chipID + channelID, 1)
-			v = v[0]
-			v = v / COUNT_MAX
-			count_high[(portID, slaveID, chipID, channelID)] = v
+		##count_high = {}
+		##for portID, slaveID, chipID, channelID in activeChannels:
+			##v = daqd.read_mem_ctrl(portID, slaveID, 5, 24, 64*chipID + channelID, 1)
+			##v = v[0]
+			##v = v / COUNT_MAX
+			##count_high[(portID, slaveID, chipID, channelID)] = v
 
 
-		adjustmentMade = False
-		for portID, slaveID, chipID, channelID in activeChannels:
-			b = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue(baselineName)
-			channelOK = True
-			if count_high[(portID, slaveID, chipID, channelID)] < 0.95:
-				channelOK = False
-				if b > 0:
-					new_b = b - 1
-					adjustmentMade = True
-				else:	
-					new_b = b
+		##adjustmentMade = False
+		##for portID, slaveID, chipID, channelID in activeChannels:
+			##b = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue(baselineName)
+			##channelOK = True
+			##if count_high[(portID, slaveID, chipID, channelID)] < 0.95:
+				##channelOK = False
+				##if b > 0:
+					##new_b = b - 1
+					##adjustmentMade = True
+				##else:	
+					##new_b = b
 
-			else:
-				new_b = b
+			##else:
+				##new_b = b
 			
-			asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].setValue(baselineName, new_b)
+			##asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].setValue(baselineName, new_b)
 
-			if not channelOK:
-				print "Channel (%2d %2d %2d %2d) | %6.1f%% active | %2d -> %2d" % (portID, slaveID, chipID, channelID, 100.0*count_high[(portID, slaveID, chipID, channelID)], b, new_b)
+			##if not channelOK:
+				##print "Channel (%2d %2d %2d %2d) | %6.1f%% active | %2d -> %2d" % (portID, slaveID, chipID, channelID, 100.0*count_high[(portID, slaveID, chipID, channelID)], b, new_b)
 
 
-		N_ITERATIONS += 1
-		if not adjustmentMade: break
+		##N_ITERATIONS += 1
+		##if not adjustmentMade: break
 
 
 outFile = open(args.outFilePrefix + "_baseline.tsv", "w")
 for portID, slaveID, chipID, channelID in activeChannels:
-	baseline_T = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue("baseline_t")
-	baseline_E = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue("baseline_e")
+	#baseline_T = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue("baseline_t")
+	#baseline_E = asicsConfig[(portID, slaveID, chipID)].channelConfig[channelID].getValue("baseline_e")
+	baseline_T = 0
+	baseline_E = 0
 
 	outFile.write("%d\t%d\t%d\t%d\t%d\t%d\n" % (
 		 portID, slaveID, chipID, channelID,
@@ -138,22 +130,22 @@ for thresholdIndex, thresholdName, baselineName in thresholdList:
 	for thresholdValue in range(0,64):
 		for ac in asicsConfig.values():
 			for cc in ac.channelConfig:
-				cc.setValue("vth_t1", 0)
-				cc.setValue("vth_t2", 0)
-				cc.setValue("vth_e", 0)
-				cc.setValue("trigger_mode_2_b", thresholdIndex)
+				cc.setValue("cfg_a3_vth_t1", 63)
+				cc.setValue("cfg_a3_vth_t2", 63)
+				cc.setValue("cfg_a3_vth_e", 63)
+				cc.setValue("c_tgr_B", thresholdIndex)
 				cc.setValue(thresholdName, thresholdValue)
 
 		daqd.setAsicsConfig(asicsConfig)
 		sleep(1*T)
-		next_read_start_time = time() + counter_sharing*T + 1E-3
+		next_read_start_time = time() + T + 1E-3
 		for n in range(args.dark_reads):
 			s = next_read_start_time - time()
 			if s > 0: sleep(s)
-			next_read_start_time = time() + counter_sharing*T + 1E-3
+			next_read_start_time = time() + T + 1E-3
 			for portID, slaveID, chipID, channelID in activeChannels:
 				# Write out fraction of discriminator active time
-				v = daqd.read_mem_ctrl(portID, slaveID, 5, 24, 64*chipID + channelID, 1)
+				v = daqd.read_mem_ctrl(portID, slaveID, 5, 8, 24, 32*chipID + channelID, 1)
 				v = v[0]
 				v = v / COUNT_MAX
 				outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
@@ -162,52 +154,53 @@ for thresholdIndex, thresholdName, baselineName in thresholdList:
 		stdout.flush()
 		
 	stdout.write("\n")
-
-#
-# Measure dark counts
-#
-outFile = open(args.outFilePrefix + "_dark.tsv", "w")
-for ac in asicsConfig.values():
-	if not ac: continue
-	gc = ac.globalConfig
-	for cc in ac.channelConfig:
-		cc.setValue("trigger_mode_1", 0)
-		cc.setValue("counter_mode", 0xC)
-		cc.setValue("trigger_b_latched", 0)
-		cc.setValue("dead_time", 20)
-
-systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_ON)
-darkProfiles = {}
-print "Scanning threshold for dark counts"
-for thresholdIndex, thresholdName, baselineName in thresholdList:
-	stdout.write("%6s " % thresholdName); stdout.flush()
-	for thresholdValue in range(64):
-		for ac in asicsConfig.values():
-			for cc in ac.channelConfig:
-				cc.setValue("vth_t1", 0)
-				cc.setValue("vth_t2", 0)
-				cc.setValue("vth_e", 0)
-				cc.setValue("trigger_mode_2_b", thresholdIndex)
-				cc.setValue(thresholdName, thresholdValue)
-
-		daqd.setAsicsConfig(asicsConfig)
-		sleep(1*T)
-		next_read_start_time = time() + counter_sharing*T + 1E-3
-		for n in range(args.dark_reads):
-			s = next_read_start_time - time()
-			if s > 0: sleep(s)
-			next_read_start_time = time() + counter_sharing*T + 1E-3
-			for portID, slaveID, chipID, channelID in activeChannels:
-				# Write out event frequency
-				v = daqd.read_mem_ctrl(portID, slaveID, 5, 24, 64*chipID + channelID, 1)
-				v = v[0]
-				v = v / T
-				outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
-				
-		stdout.write(".")
-		stdout.flush()
-	stdout.write("\n")
 outFile.close()
+
+copyfile(args.outFilePrefix + "_noise.tsv", args.outFilePrefix + "_dark.tsv")
+##
+## Measure dark counts
+##
+#outFile = open(args.outFilePrefix + "_dark.tsv", "w")
+#for ac in asicsConfig.values():
+	#if not ac: continue
+	#gc = ac.globalConfig
+	#for cc in ac.channelConfig:
+		#cc.setValue("c_tgr_main", 0)
+		#cc.setValue("c_count", 0xC)
+		#cc.setValue("c_latch_B", 0)
+
+#systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_ON)
+#darkProfiles = {}
+#print "Scanning threshold for dark counts"
+#for thresholdIndex, thresholdName, baselineName in thresholdList:
+	#stdout.write("%6s " % thresholdName); stdout.flush()
+	#for thresholdValue in range(64):
+		#for ac in asicsConfig.values():
+			#for cc in ac.channelConfig:
+				#cc.setValue("cfg_a3_vth_t1", 0)
+				#cc.setValue("cfg_a3_vth_t2", 0)
+				#cc.setValue("cfg_a3_vth_e", 0)
+				#cc.setValue("c_tgr_B", thresholdIndex)
+				#cc.setValue(thresholdName, thresholdValue)
+
+		#daqd.setAsicsConfig(asicsConfig)
+		#sleep(1*T)
+		#next_read_start_time = time() + T + 1E-3
+		#for n in range(args.dark_reads):
+			#s = next_read_start_time - time()
+			#if s > 0: sleep(s)
+			#next_read_start_time = time() + T + 1E-3
+			#for portID, slaveID, chipID, channelID in activeChannels:
+				## Write out event frequency
+				#v = daqd.read_mem_ctrl(portID, slaveID, 5, 8, 24, 32*chipID + channelID, 1)
+				#v = v[0]
+				#v = v / T
+				#outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
+				
+		#stdout.write(".")
+		#stdout.flush()
+	#stdout.write("\n")
+#outFile.close()
 	
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF)
 

@@ -13,7 +13,7 @@ from math import sqrt
 
 
 # Create the S-Curve function
-fSigmoid = ROOT.TF1("fSigmoid","[0]*ROOT::Math::normal_cdf(x,[1],[2])",0,64);
+fSigmoid = ROOT.TF1("fSigmoid","1-[0]*ROOT::Math::normal_cdf(x,[1],[2])",0,64);
 fSigmoid.SetParName(0, "C")
 fSigmoid.SetParName(1, "#sigma")
 fSigmoid.SetParName(2, "x0")
@@ -21,8 +21,8 @@ fSigmoid.SetNpx(64)
 
 
 def getBaselineAndNoise(profile):
-	low = profile.GetBinCenter(profile.FindFirstBinAbove(0.1)) - 0.5
-	high = profile.GetBinCenter(profile.FindFirstBinAbove(0.9)) + 0.5
+	low = profile.GetBinCenter(profile.FindLastBinAbove(0.9)) - 0.5
+	high = profile.GetBinCenter(profile.FindLastBinAbove(0.1)) + 0.5
 
 	fSigmoid.FixParameter(0, 1.0);
 
@@ -48,9 +48,9 @@ def getBaselineAndNoise(profile):
 def getThresholdForRate(profile, rate):
 	threshold = profile.FindFirstBinAbove(rate) - profile.FindBin(0)
 	if threshold > 63:
-		return 63
+		return 0
 	elif threshold < 0:
-		return 63
+		return 0
 	else:
 		return threshold
 
@@ -101,7 +101,7 @@ def main(argv):
 
 	noiseProfiles = {}
 	for portID, slaveID, chipID, channelID in activeChannels:
-		for thresholdName in ["vth_t1", "vth_t2", "vth_e"]:
+		for thresholdName in ["cfg_a3_vth_t1", "cfg_a3_vth_t2", "cfg_a3_vth_e"]:
 			hName = "hNoise_%02d_%02d_%02d_%02d_%s" % (portID, slaveID, chipID, channelID, thresholdName)
 			hTitle = "Noise (%02d %02d %02d %02d) %s" % (portID, slaveID, chipID, channelID, thresholdName)
 			noiseProfiles[(portID, slaveID, chipID, channelID, thresholdName)] = ROOT.TProfile(hName, hTitle, 64, 0, 64)
@@ -119,7 +119,7 @@ def main(argv):
 
 	darkProfiles = {}
 	for portID, slaveID, chipID, channelID in activeChannels:
-		for thresholdName in ["vth_t1", "vth_t2", "vth_e"]:
+		for thresholdName in ["cfg_a3_vth_t1", "cfg_a3_vth_t2", "cfg_a3_vth_e"]:
 			hName = "hDark_%02d_%02d_%02d_%02d_%s" % (portID, slaveID, chipID, channelID, thresholdName)
 			hTitle = "Dark (%02d %02d %02d %02d) %s" % (portID, slaveID, chipID, channelID, thresholdName)
 			darkProfiles[(portID, slaveID, chipID, channelID, thresholdName)] = ROOT.TProfile(hName, hTitle, 64, 0, 64)
@@ -162,14 +162,14 @@ def main(argv):
 
 	nPoints = {}
 	for portID, slaveID, chipID in activeChips:
-                gbaseline_T[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gbaseline_E[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gzero_T1[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gzero_T2[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gzero_E[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gnoise_T1[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gnoise_T2[(portID, slaveID, chipID)] = ROOT.TGraph(64)
-                gnoise_E[(portID, slaveID, chipID)] = ROOT.TGraph(64)
+                gbaseline_T[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gbaseline_E[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gzero_T1[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gzero_T2[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gzero_E[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gnoise_T1[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gnoise_T2[(portID, slaveID, chipID)] = ROOT.TGraph(32)
+                gnoise_E[(portID, slaveID, chipID)] = ROOT.TGraph(32)
 		nPoints[(portID, slaveID, chipID)] = 0
 	
 
@@ -182,11 +182,11 @@ def main(argv):
 		gbaseline_T[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, baseline_T)
 		gbaseline_E[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, baseline_E)
 		
-		zero_T1, noise_T1 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "vth_t1")])
-		zero_T2, noise_T2 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "vth_t2")])
+		zero_T1, noise_T1 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_t1")])
+		zero_T2, noise_T2 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_t2")])
 
-		# WARNING: Scan is not working well for vth_E
-		zero_E, noise_E = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "vth_e")])
+		# WARNING: Scan is not working well for cfg_a3_vth_E
+		zero_E, noise_E = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_e")])
 		
 		gzero_T1[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, zero_T1)
 		gzero_T2[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, zero_T2)
@@ -220,34 +220,34 @@ def main(argv):
                 multi1 = ROOT.TMultiGraph()
                 multi2 = ROOT.TMultiGraph()
                 multi3 = ROOT.TMultiGraph()
-                c1.Divide(2,2)
+                c1.Divide(2,1)
 
 
-                c1.cd(1)
-                gbaseline_T[(portID, slaveID, chipID)].SetMarkerColor(1)
-                gbaseline_T[(portID, slaveID, chipID)].SetMarkerSize(0.6)
-                gbaseline_T[(portID, slaveID, chipID)].SetMarkerStyle(2)
+                #c1.cd(1)
+                #gbaseline_T[(portID, slaveID, chipID)].SetMarkerColor(1)
+                #gbaseline_T[(portID, slaveID, chipID)].SetMarkerSize(0.6)
+                #gbaseline_T[(portID, slaveID, chipID)].SetMarkerStyle(2)
           
                 
-                gbaseline_E[(portID, slaveID, chipID)].SetMarkerColor(2)
-                gbaseline_E[(portID, slaveID, chipID)].SetMarkerSize(0.6)
-                gbaseline_E[(portID, slaveID, chipID)].SetMarkerStyle(2)
+                #gbaseline_E[(portID, slaveID, chipID)].SetMarkerColor(2)
+                #gbaseline_E[(portID, slaveID, chipID)].SetMarkerSize(0.6)
+                #gbaseline_E[(portID, slaveID, chipID)].SetMarkerStyle(2)
           
-                multi1.SetMaximum(64)
-                multi1.SetMinimum(0)
-                multi1.SetTitle("Baseline")
-                multi1.Add(gbaseline_T[(portID, slaveID, chipID)])
-                multi1.Add(gbaseline_E[(portID, slaveID, chipID)])
-                multi1.Draw("AP")
-                multi1.GetXaxis().SetTitle("Channel")
-                multi1.GetYaxis().SetTitle("DAC Units")
+                #multi1.SetMaximum(32)
+                #multi1.SetMinimum(0)
+                #multi1.SetTitle("Baseline")
+                #multi1.Add(gbaseline_T[(portID, slaveID, chipID)])
+                #multi1.Add(gbaseline_E[(portID, slaveID, chipID)])
+                #multi1.Draw("AP")
+                #multi1.GetXaxis().SetTitle("Channel")
+                #multi1.GetYaxis().SetTitle("DAC Units")
 
-                leg1 = ROOT.TLegend(0.75,0.45,0.89,0.55)
-                leg1.AddEntry(gbaseline_T[(portID, slaveID, chipID)],"t1 and t2","p");
-                leg1.AddEntry(gbaseline_E[(portID, slaveID, chipID)],"E","p");                
-                leg1.Draw()
+                #leg1 = ROOT.TLegend(0.75,0.45,0.89,0.55)
+                #leg1.AddEntry(gbaseline_T[(portID, slaveID, chipID)],"t1 and t2","p");
+                #leg1.AddEntry(gbaseline_E[(portID, slaveID, chipID)],"E","p");                
+                #leg1.Draw()
 
-                c1.cd(2)
+                c1.cd(1)
                 gzero_T1[(portID, slaveID, chipID)].SetMarkerColor(1)
                 gzero_T1[(portID, slaveID, chipID)].SetMarkerSize(0.6)
                 gzero_T1[(portID, slaveID, chipID)].SetMarkerStyle(2)
@@ -265,7 +265,7 @@ def main(argv):
                 multi2.Add(gzero_T1[(portID, slaveID, chipID)])
                 multi2.Add(gzero_T2[(portID, slaveID, chipID)])
                 multi2.Add(gzero_E[(portID, slaveID, chipID)])
-                multi2.SetMaximum(64)
+                multi2.SetMaximum(32)
                 multi2.SetMinimum(0)
                 multi2.SetTitle("Zero")
 
@@ -279,7 +279,7 @@ def main(argv):
                 leg2.AddEntry(gzero_E[(portID, slaveID, chipID)],"E","p");
                 leg2.Draw()
                 
-                c1.cd(3)
+                c1.cd(2)
                 gnoise_T1[(portID, slaveID, chipID)].SetMarkerColor(1)
                 gnoise_T1[(portID, slaveID, chipID)].SetMarkerSize(0.6)
                 gnoise_T1[(portID, slaveID, chipID)].SetMarkerStyle(2)
