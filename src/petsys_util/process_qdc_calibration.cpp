@@ -383,6 +383,28 @@ void calibrateAsic(
 		sprintf(hName, "c_%02d_%02d_%02d_%02d_%d_pFine", portID, slaveID, chipID, channelID, tacID);
 		TProfile *pFine = hFine2->ProfileX(hName, 1, -1, "s");
 		
+		
+		int bMin = 1;
+		for(; bMin <= nBins; bMin++) {
+			int c = pFine->GetBinEntries(bMin);
+			if(c < 10) continue;
+			float v = pFine->GetBinContent(bMin);
+			if (v >= 10) break;
+		}
+		
+		int bMax = bMin + 1;
+		for(; bMax <= nBins; bMax++) {
+			int c = pFine->GetBinEntries(bMax);
+			if(c < 10) continue;
+			float v = pFine->GetBinContent(bMax);
+			if (v < 10) break;
+			if (v > 1014) break;
+			
+		}
+		
+		float xMin = pFine->GetBinLowEdge(bMin);
+		float xMax = pFine->GetBinLowEdge(bMax+1);
+		
 // 		float yMin = pFine->GetMinimum(2);
 // 		int bMin = pFine->FindFirstBinAbove(yMin);
 // 		bMin = (bMin > 1) ? bMin : 1;
