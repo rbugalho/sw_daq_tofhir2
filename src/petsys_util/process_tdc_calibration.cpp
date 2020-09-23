@@ -59,6 +59,7 @@ struct CalibrationEntry {
 	float a1;
 	float a2;
 	bool valid;
+	float maxINL;
 };
 
 
@@ -154,6 +155,7 @@ int main(int argc, char *argv[])
 		calibrationTable[gid].a0 = 0.0;
 		calibrationTable[gid].a1 = 0.0;
 		calibrationTable[gid].a2 = 0.0;
+		calibrationTable[gid].maxINL = 0;
 	}
 
 	if(doSorting) {
@@ -531,13 +533,15 @@ void calibrateAsic(
 		float minChi2 = INFINITY;
 		int nTry = 0;
 		float maxChi2 = 2E4;
+		
+		TF1 *pf_ = NULL;
 		do {
 			pf->SetParameter(0, tEdge);		pf->SetParLimits(0, lowerT0, upperT0);
 			pf->SetParameter(1, adcMin);		pf->SetParLimits(1, adcMin - estimatedM * tEdgeTolerance, adcMin);
 			pf->SetParameter(2, estimatedM);	pf->SetParLimits(2, 0.98 * estimatedM, 1.02 * estimatedM),
 			pFine->Fit("periodicF1", "Q", "", xMin, xMax);
 			
-			TF1 *pf_ = pFine->GetFunction("periodicF1");
+			pf_ = pFine->GetFunction("periodicF1");
 			if(pf_ != NULL) {
 				prevChi2 = currChi2;
 				currChi2 = pf_->GetChisquare() / pf_->GetNDF();	
@@ -557,17 +561,34 @@ void calibrateAsic(
 			
 		} while((currChi2 <= 0.95*prevChi2) && (nTry < 10));
 		
-		
+		sprintf(hName, "c_%02d_%02d_%02d_%02d_%d_%c_pINL", portID, slaveID, chipID, channelID, tacID, bStr);
+		TProfile *pINL = new TProfile(hName, "INL", 1024, 0, 1024);
+		for(int i = 1; i <= nBinsX; i++) {
+			float t = hFine2->GetXaxis()->GetBinCenter(i);
+			float expectedADC = pf_->Eval(t);
 
+			for(int j = 1; j <= 1024; j++) {
+				float count = hFine2->GetBinContent(i, j);
+				if(count == 0) continue;
+				float adc = hFine2->GetYaxis()->GetBinLowEdge(j);
+				pINL->Fill(adc, adc-expectedADC, count);
+				
+			}
+		}
+			
+		float maxINL = 0;
+		for(int j = ceil(b)+5; j <= floor(b+m)-5; j++) {
+			int c = pINL->GetBinEntries(j);
+			if(c < 100) continue;
 
-		//if(prevChi2 > maxChi2 && currChi2 > maxChi2) {
-		//	fprintf(stderr, "WARNING: NO FIT OR VERY BAD FIT (1). Skipping TAC (%02u %02d %02d %02d %u %c)\n",
-		//	portID, slaveID, chipID, channelID, tacID, bStr);
-	//	delete pf;
-	//		continue;
-	//	}
-		
-	
+			float e = pINL->GetBinError(j);
+			if(e > 5) continue;
+			
+			float v = fabs(pINL->GetBinContent(j));
+			if(v < maxINL) continue;
+			
+			maxINL = v;
+		}
 		
 		TF1 *pf2 = new TF1("periodicF2", periodicF2, xMin, xMax,  nPar2);
 		pf2->SetNpx(2*nBinsX);
@@ -666,6 +687,7 @@ void calibrateAsic(
 		entry.a0 = a0 = pf2->GetParameter(1);
 		entry.a1 = a1 = pf2->GetParameter(2);
 		entry.a2 = a2 = pf2->GetParameter(3);
+		entry.maxINL = maxINL;
 		entry.valid = true;
 	
 		delete pf;
@@ -822,7 +844,7 @@ void calibrateAsic(
 
 	
 	TCanvas *c = new TCanvas();
-	c->Divide(3,2);
+	c->Divide(4,2);
 	TH1F *hCount_list[2];
 	for(unsigned long branchID = 0; branchID < 2; branchID++) {
 		char bStr = (branchID == 0) ? '1' : '2';
@@ -836,7 +858,16 @@ void calibrateAsic(
 		TGraphErrors *gResolution = new TGraphErrors(32*8);
 		sprintf(hName, "gResolution_%c", bStr);
 		gResolution->SetName(hName);
-		int gResolutionNPoints = 0;
+	
+		sprintf(hName, "hINL_%c", bStr);
+		TH1S *hINL = new TH1S(hName, "Max INL histogram", 256, 0.0, 8.0);
+
+		TGraph *gINL = new TGraph(32*8);
+		sprintf(hName, "gINL_%c", bStr);
+		gINL->SetName(hName);
+		
+		int gPoints = 0;
+		
 		
 		TCanvas *tmp1 = new TCanvas(); // We need this, otherwise the fitting will overwrite into "c"
 		for(unsigned long channelID = 0; channelID < 32; channelID++) {
@@ -856,21 +887,24 @@ void calibrateAsic(
 				
 				float sigma = fit->GetParameter(2);
 				float sigmaError = fit->GetParError(2);
-				gResolution->SetPoint(gResolutionNPoints, channelID + tacID/8.0, sigma);
-				gResolution->SetPointError(gResolutionNPoints, 0, sigmaError);
+				gResolution->SetPoint(gPoints, channelID + tacID/8.0, sigma);
+				gResolution->SetPointError(gPoints, 0, sigmaError);
 				hResolution->Fill(sigma);
 				
-				gResolutionNPoints += 1;
+				hINL->Fill(entry.maxINL);
+				gINL->SetPoint(gPoints, channelID + tacID/8.0, entry.maxINL);
+				
+				gPoints += 1;
 			}
 		}
 		delete tmp1;
 		
-		c->cd(3*branchID + 1);
+		c->cd(4*branchID + 1);
 		hCounts->GetXaxis()->SetTitle("Channel");
 		hCounts->GetYaxis()->SetRangeUser(0, maxCounts * 1.10);
 		hCounts->Draw("HIST");
 		
-		c->cd(3*branchID + 2);
+		c->cd(4*branchID + 2);
 		gResolution->Draw("AP");
 		gResolution->SetTitle("TDC resolution");
 		gResolution->GetXaxis()->SetTitle("Channel");
@@ -880,10 +914,20 @@ void calibrateAsic(
 		gResolution->Draw("AP");
 		gResolution->Write();
 		
-		c->cd(3*branchID + 3);
+		c->cd(4*branchID + 3);
 		hResolution->SetTitle("TDC resolution histogram");
 		hResolution->GetXaxis()->SetTitle("TDC resolution (clk RMS)");
 		hResolution->Draw("HIST");
+
+		c->cd(4*branchID + 4);
+		gINL->Draw("AP");
+		gINL->SetTitle("Max INL");
+		gINL->GetXaxis()->SetTitle("Channel");
+		gINL->GetXaxis()->SetRangeUser(0, 32);
+		gINL->GetYaxis()->SetTitle("Max INL (LSB)");
+		gINL->GetYaxis()->SetRangeUser(0, 8);
+		gINL->Draw("AP");
+		gINL->Write();
 		
 	}
 	sprintf(fName, "%s.pdf", summaryFilePrefix);
@@ -1032,7 +1076,7 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
 		unsigned branchID = gid % 2;
 		char bStr = (branchID == 0) ? '1' : '2';
 		unsigned tacID = (gid >> 1) % 8;
-		unsigned channelID = (gid >> 4) % 64;
+		unsigned channelID = (gid >> 4) % 32;
 		unsigned chipID = (gid >> 9) % 64;
 		unsigned slaveID = (gid >> 15) % 32;
 		unsigned portID = (gid >> 20) % 32;
