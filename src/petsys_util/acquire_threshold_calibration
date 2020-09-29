@@ -14,12 +14,23 @@ parser.add_argument("--config", type=str, required=True, help="Configuration fil
 parser.add_argument("-o", type=str, dest="outFilePrefix", required=True, help="Data file prefix")
 parser.add_argument("--nreads-noise", dest="noise_reads", type=int, required=False, default=4)
 parser.add_argument("--nreads-dark", dest="dark_reads", type=int, required=False, default=4)
+parser.add_argument("--no-bias", dest="no_bias", action="store_true", required=False, default=False)
 args = parser.parse_args()
 
-systemConfig = config.ConfigFromFile(args.config, loadMask=config.LOAD_BIAS_CALIBRATION | config.LOAD_BIAS_SETTINGS)
+if args.no_bias:
+	loadMask = 0x0
+	bias_enable_noise = config.APPLY_BIAS_OFF
+	bias_enable_dark = config.APPLY_BIAS_OFF
+else:
+	loadMask = config.LOAD_BIAS_CALIBRATION | config.LOAD_BIAS_SETTINGS
+	bias_enable_noise = config.APPLY_BIAS_PREBD
+	bias_enable_dark = config.APPLY_BIAS_ON
+	
+
+systemConfig = config.ConfigFromFile(args.config, loadMask=loadMask)
 daqd = daqd.Connection()
 daqd.initializeSystem()
-systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_PREBD)
+systemConfig.loadToHardware(daqd, bias_enable=bias_enable_noise)
 asicsConfig = daqd.getAsicsConfig()
 
 
@@ -169,7 +180,7 @@ copyfile(args.outFilePrefix + "_noise.tsv", args.outFilePrefix + "_dark.tsv")
 		#cc.setValue("c_count", 0xC)
 		#cc.setValue("c_latch_B", 0)
 
-#systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_ON)
+#systemConfig.loadToHardware(daqd, bias_enable=bias_enable_dark)
 #darkProfiles = {}
 #print "Scanning threshold for dark counts"
 #for thresholdIndex, thresholdName, baselineName in thresholdList:
