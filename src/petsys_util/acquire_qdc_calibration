@@ -13,7 +13,7 @@ parser.add_argument("--config", type=str, required=True, help="Configuration fil
 parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
 args = parser.parse_args()
 
-systemConfig = config.ConfigFromFile(args.config, loadMask=config.LOAD_BIAS_CALIBRATION | config.LOAD_BIAS_SETTINGS)
+systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
 daqd = daqd.Connection()
 daqd.initializeSystem()
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF, qdc_mode="qdc")
@@ -38,13 +38,12 @@ for ac in asicsConfig.values():
 		cc.setValue("c_min_q", 0)
 		cc.setValue("c_max_q", 511)
 
-simultaneousChannels = 32
+simultaneousChannels = 15
 
 # Clamp down simulatenous channels due to system limitations
 # 126/16 -- GbE interface: 126 events/frame with FEB/D, 16 ASICs per FEB/D
 # 1024/80 -- ASIC TX: 1024 clock/frame (x1 SDR), 80 bits per event
 simultaneousChannels = min([simultaneousChannels, 126/16, 1024/80])
-simultaneousChannels = 1
 
 channelStep = int(math.ceil(32.0/simultaneousChannels))
 
