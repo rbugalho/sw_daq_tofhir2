@@ -503,8 +503,8 @@ void calibrateAsic(
 		pControlT_list[gid-gidStart] = new TProfile(hName, hName, 128, 0, 128*4, "s");
 		sprintf(hName, "c_%02d_%02d_%02d_%02d_%d_control_E", portID, slaveID, chipID, channelID, tacID);
 		
-		int ControlHistogramNBins = 128;
-		float ControlHistogramRange = 5.0;
+		int ControlHistogramNBins = 256;
+		float ControlHistogramRange = 10.0;
 		hControlE_list[gid-gidStart] = new TH1S(hName, hName, ControlHistogramNBins, -ControlHistogramRange, ControlHistogramRange);
 	}
 	
@@ -558,7 +558,7 @@ void calibrateAsic(
 	TCanvas *c = new TCanvas();
 	c->Divide(2, 2);
 	TH1F *hCounts = new TH1F("hCounts", "", 32*8, 0, 32);
-	TH1S *hResolution = new TH1S("hResolution", "QDC resolution histograms", 256, 0, 5.0);
+	TH1S *hResolution = new TH1S("hResolution", "QDC resolution histograms", 256, 0, 10.0);
 	TGraphErrors *gResolution = new TGraphErrors(32*8);
 	gResolution->SetName("gResolution");
 	int gResolutionNPoints = 0;
@@ -607,7 +607,7 @@ void calibrateAsic(
 	gResolution->GetXaxis()->SetTitle("Channel");
 	gResolution->GetXaxis()->SetRangeUser(0, 32);
 	gResolution->GetYaxis()->SetTitle("Resolution (ADC RMS)");
-	gResolution->GetYaxis()->SetRangeUser(0, 5.0);
+	gResolution->GetYaxis()->SetRangeUser(0, 10.0);
 	gResolution->Draw("AP");
 	gResolution->Write();
 	
