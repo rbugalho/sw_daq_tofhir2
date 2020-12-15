@@ -19,6 +19,7 @@ def compile_cfg_map(*args):
 	result_map = []
 	for n in range(0, len(args), 2):
 		for name, msb, lsb, default in args[n+1]:
+			name = name.lower()
 			bits = bit_range(total_length + msb, total_length + lsb)
 
 			intersection = bits_used.intersection(set(bits))
@@ -54,6 +55,7 @@ class AbstractConfig(bitarray):
 	# @param key  String with the name of the parameter to be set
 	# @param value  Integer corresponding to the value to be set	
 	def setValue(self, key, value):
+		key = key.lower()
 		b = intToBin(value, len(self.fields[key]))
 		self.setBits(key, b)
 
@@ -61,6 +63,7 @@ class AbstractConfig(bitarray):
 	# @param key  String with the name of the parameter to be set
 	# @param value  Bitarray corresponding to the value to be set		
 	def setBits(self, key, value):
+		key = key.lower()
 		index = self.fields[key]
 		assert len(value) == len(index)
 		for a,b in enumerate(index):
@@ -69,6 +72,7 @@ class AbstractConfig(bitarray):
 	## Returns the value of a given parameter as a bitarray
 	# @param key  String with the name of the parameter to be returned	
 	def getBits(self, key):
+		key = key.lower()
 		index = self.fields[key]
 		value = bitarray(len(index))
 		for a,b in enumerate(index):
@@ -78,6 +82,7 @@ class AbstractConfig(bitarray):
 	## Returns the value of a given parameter as an integer
 	# @param key  String with the name of the parameter to be returned	
 	def getValue(self, key):
+		key = key.lower()
 		return binToInt(self.getBits(key))
 
 	## Prints the content of all parameters as a bitarray	
