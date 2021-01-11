@@ -114,7 +114,7 @@ class AsicGlobalConfig(AbstractConfig):
 		fields_d3 = [
 			("c_r_clk_en", 5, 0,		3),
 			("c_tac_refresh_en", 6, 6,	1),
-			("c_tac_refresh_t", 18, 7,	51),
+			("c_tac_refresh_t", 18, 7,	3),
 			("c_counter_en", 19, 19,	0),
 			("c_counter_t", 43, 20,		0),
 			("c_l0_enable", 45, 44,		0),
