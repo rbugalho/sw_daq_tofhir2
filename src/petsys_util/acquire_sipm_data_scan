@@ -30,7 +30,9 @@ parser.add_argument("--vth1", type=str, dest="vth1", required=True, help="comma 
 parser.add_argument("--vth2", type=str, dest="vth2", required=True, help="comma separated values for vth2")
 parser.add_argument("--vthe", type=str, dest="vthe", required=True, help="comma separated values for vthe")
 parser.add_argument("--taps", type=str, dest="taps", required=False, help="number of taps [0..6]")
-parser.add_argument("--ov", type=str, dest="ov",   required=True, help="comma separated values for ov")
+parser.add_argument("--ov", type=str, dest="ov", required=True, help="comma separated values for ov")
+parser.add_argument("--bd", type=str, dest="bd", required=True, help="breakdown voltage")
+parser.add_argument("--aldo", dest="aldo", action="store_true", help="switch for ALDO usage")
 parser.add_argument("--trigger", type=str, dest="trigger", required=False, help="trigger type (none, ext, int)")
 parser.add_argument("--freq", type=float, dest="freq", required=False, help="internal trigger frequency (in kHz)")
 parser.add_argument("--phase", type=float, dest="phase", required=False, help="trigger phase (in clk)")
@@ -52,18 +54,23 @@ if args.taps:
 if( args.enChannels ):
         args.enChannels = args.enChannels.split(',')
         #print(args.enChannels)
-1
+
 if( args.fixChannels ):
         args.fixChannels = args.fixChannels.split(',')
         #print(args.fixChannels)
 
 if not args.fileNamePrefix:
-        with open('/data/tofhir2/last_run') as f:
+        with open('/data/TOFHIR2/last_run') as f:
                 run = [int(x) for x in next(f).split()]
-                os.remove('/data/tofhir2/last_run')
-                with open('/data/tofhir2/last_run','w+') as f:
+                os.remove('/data/TOFHIR2/last_run')
+                with open('/data/TOFHIR2/last_run','w+') as f:
                         f.write(str(run[0]+1))
-        args.fileNamePrefix = "/data/tofhir2/raw/run%04d" % (run[0]+1)
+        args.fileNamePrefix = "/data/TOFHIR2/raw/run%04d" % (run[0]+1)
+
+if args.pedestals:
+        print("INFO: acquiring pedestals")
+        command = "./acquire_qdc_calibration_fixed  --config "+args.config+" -o "+args.fileNamePrefix+"_ped1"
+        os.system(command)
 
 mask = config.LOAD_ALL
 # if args.mode != "mixed":
@@ -77,12 +84,21 @@ systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_ON)
 
 if args.trigger == "int":
         daqd.write_config_register_tgr(8, 0x21A, 0x81)
-        #daqd.setTestPulsePLL(512, int(1./(args.freq*6.25e-06)), args.phase, False)
         daqd.setTestPulsePLL(100, int(1./(args.freq*6.25e-06)), args.phase, False)
 if args.trigger == "ext":
         print "FIXME"
 
 asicsConfig = daqd.getAsicsConfig()
+
+if args.aldo:
+        for ac in asicsConfig.values():
+                gc = ac.globalConfig
+                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC(args.bd,args.ov)
+                gc.setValue("c_aldo_en", 0b11)
+                #gc.setValue("Valdo_A_Gain", 1)
+                #gc.setValue("Valdo_B_Gain", 1)
+                gc.setValue("Valdo_A_DAC", dac_A)
+                gc.setValue("Valdo_B_DAC", dac_B)
 
 asicsConfig0 = deepcopy(asicsConfig)
 daqd.openRawAcquisition(args.fileNamePrefix)
@@ -105,11 +121,12 @@ if( args.enChannels ):
                         cc = ac.channelConfig[int(channelID)]
                         cc.setValue("c_tgr_main", 0b00)
 
-for portID, slaveID, chipID in activeAsics:
-        ac = cfg[(portID, slaveID, chipID)]
-        for channelID in range(32):
-                cc = ac.channelConfig[channelID]
-                cc.setValue("c_tgr_main", 0b00)
+else:
+        for portID, slaveID, chipID in activeAsics:
+                ac = cfg[(portID, slaveID, chipID)]
+                for channelID in range(32):
+                        cc = ac.channelConfig[channelID]
+                        cc.setValue("c_tgr_main", 0b00)
 
 
 #--------------------------------
@@ -144,21 +161,22 @@ for vth1 in vth1_list:
                                                         
                                                         #cc.setValue("cfg_a3_vth_t1", 10)
                                                         #cc.setValue("cfg_a3_vth_t2", 10)
-                                                
+                                                        print "fixing channel %d" % int(ch)
                                                         cc = ac.channelConfig[int(ch)]
-                                                        dac_setting_vth1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(6))
+                                                        dac_setting_vth1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(15))
                                                         cc.setValue("cfg_a3_vth_t1", dac_setting_vth1)
-                                                        dac_setting_vth2 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", int(3))
+                                                        dac_setting_vth2 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", int(15))
                                                         cc.setValue("cfg_a3_vth_t2", dac_setting_vth2)
                                 
-                                biasVoltageConfig = daqd.get_hvdac_config()
-                                for key in daqd.getActiveBiasChannels():
-                                        offset, prebd, bd, over__ = systemConfig.getBiasChannelDefaultSettings(key)
-                                        vset = offset + bd + float(ov)
-                                        dac_setting = systemConfig.mapBiasChannelVoltageToDAC(key, vset)
-                                        biasVoltageConfig[key] = dac_setting
-                                        daqd.set_hvdac_config(biasVoltageConfig)
-                                        
+                                if not args.aldo:
+                                        biasVoltageConfig = daqd.get_hvdac_config()
+                                        for key in daqd.getActiveBiasChannels():
+                                                offset, prebd, bd, over__ = systemConfig.getBiasChannelDefaultSettings(key)
+                                                vset = offset + bd + float(ov)
+                                                dac_setting = systemConfig.mapBiasChannelVoltageToDAC(key, vset)
+                                                biasVoltageConfig[key] = dac_setting
+                                                daqd.set_hvdac_config(biasVoltageConfig)
+                                
                                 daqd.setAsicsConfig(cfg)
                                 sleep(0.1)
                                 print "ov: %3.1f,   vth1: %2d,   vth2: %2d,   vthe: %2d" % (float(ov), int(vth1), int(vth2), int(vthe))
@@ -166,3 +184,9 @@ for vth1 in vth1_list:
                                         
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF)
 daqd.setTestPulseNone()
+
+
+if args.pedestals:
+        print("INFO: acquiring pedestals")
+        command = "./acquire_qdc_calibration_fixed  --config "+args.config+" -o "+args.fileNamePrefix+"_ped2"
+        os.system(command)

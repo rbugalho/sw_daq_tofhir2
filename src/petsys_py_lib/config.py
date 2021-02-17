@@ -14,6 +14,7 @@ LOAD_DISC_CALIBRATION	= 0x00000004
 LOAD_DISC_SETTINGS	= 0x00000008
 LOAD_MAP		= 0x00000010
 LOAD_QDCMODE_MAP	= 0x00000020
+LOAD_ALDO_CALIBRATION	= 0x00000030
 LOAD_ALL		= 0xFFFFFFFF
 
 APPLY_BIAS_OFF		= 0x0
@@ -69,6 +70,17 @@ def ConfigFromFile(configFileName, loadMask=LOAD_ALL):
 		t = readQDCModeTable(fn)
 		config._Config__asicChannelQDCModeTable = t
 		config._Config__loadMask |= LOAD_QDCMODE_MAP
+        
+        if (loadMask & LOAD_ALDO_CALIBRATION) != 0:
+                fn = configParser.get("main", "aldo_A_calibration")
+		fn = replace_variables(fn, cdir)
+		t = readALDOCalibration(fn)
+		config._Config__ALDOACalibrationTable = t
+                fn = configParser.get("main", "aldo_B_calibration")
+		fn = replace_variables(fn, cdir)
+		t = readALDOCalibration(fn)
+		config._Config__ALDOBCalibrationTable = t
+		config._Config__loadMask |= LOAD_ALDO_CALIBRATION
 
 
 	# Load hw_trigger configuration IF hw_trigger section exists
@@ -103,6 +115,8 @@ class Config:
 		self.__asicChannelThresholdSettingsTable = {}
                 self.__asicChannelQDCModeTable = {}
 		self.__asicParameterTable = {}
+		self.__ALDOACalibrationTable = {}
+		self.__ALDOBCalibrationTable = {}
 		self.__hw_trigger = None
 
 
@@ -241,8 +255,26 @@ class Config:
 		vth_t1, vth_t2, vth_e = self.__asicChannelThresholdCalibrationTable[key]
 		tmp = { "vth_t1" : vth_t1, "vth_t2" : vth_t2, "vth_e" : vth_e }
 		return int( tmp[vth_str] + value)
-		
-
+                
+	def mapALDOVoltageToDAC(self, bd, ov):
+                retA = -1
+                retB = -1
+                bestA = 9999.
+                bestB = 9999.
+                for key in self.__ALDOACalibrationTable:
+                        val = self.__ALDOACalibrationTable[key]
+                        if abs( float(val) - (float(bd)+float(ov)) ) < bestA:
+                                retA = key
+                                bestA = abs( float(val) - (float(bd)+float(ov)) )
+                for key in self.__ALDOBCalibrationTable:
+                        val = self.__ALDOBCalibrationTable[key]
+                        if abs( float(val) - (float(bd)+float(ov)) ) < bestB:
+                                retB = key
+                                bestB = abs( float(val) - (float(bd)+float(ov)) )
+                print("A:   DAC: %d   V: %f") %(int(retA),float(self.__ALDOACalibrationTable[retA]))
+                print("B:   DAC: %d   V: %f") %(int(retB),float(self.__ALDOBCalibrationTable[retB]))
+                return retA, retB
+                        
 def toInt(s):
 	s = s.upper()
 	if s[0:2] == "0X":
@@ -375,6 +407,15 @@ def readQDCModeTable(fn):
                 if c[(portID, slaveID, chipID, channelID)] not in ['tot', 'qdc']:
 			print "Error in '%s' line %d: mode must be 'qdc' or 'tot'\n" % (fn, ln)
 			exit(1)
+	f.close()
+	return c
+
+def readALDOCalibration(fn):
+	f = open(fn)
+	c = {}
+	for l in f:
+		l = normalizeAndSplit(l)
+                c[int(l[0])] = l[1]
 	f.close()
 	return c
 

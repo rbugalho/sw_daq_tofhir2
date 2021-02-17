@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from petsys import daqd, config
+from copy import deepcopy
+import argparse
+import math
+import time
+import os.path
+
+parser = argparse.ArgumentParser(description='Acquire data for QDC calibration')
+parser.add_argument("--config", type=str, required=True, help="Configuration file")
+parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
+args = parser.parse_args()
+
+systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
+daqd = daqd.Connection()
+daqd.initializeSystem()
+systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF, qdc_mode="qdc")
+daqd.openRawAcquisition(args.fileNamePrefix, calMode=False)
+
+nPhases = 10
+nLengths = 1
+
+intg_time = {}
+
+asicsConfig = daqd.getAsicsConfig()
+for ac in asicsConfig.values():
+	
+        for channel in range(0, 32):
+                min = ac.channelConfig[channel].getValue("c_min_q")
+                max = ac.channelConfig[channel].getValue("c_max_q")
+                if( min != max ):
+                        print("error: min: %d   max: %d") %(int(min),int(max))
+                intg_time[channel] = min
+        
+        ac.globalConfig.setValue("c_ext_tp_en", 1)
+	for cc in ac.channelConfig:
+		# Disable channel from triggering.
+		# Will selectively enable channels below
+		cc.setValue("c_tgr_main", 0b11)
+		#cc.setValue("cfg_a2_attenuator_dc_cancel_en", 0)
+		cc.setValue("c_min_q", 0)
+		cc.setValue("c_max_q", 511)
+
+#simultaneousChannels = 15
+
+# Clamp down simulatenous channels due to system limitations
+# 126/16 -- GbE interface: 126 events/frame with FEB/D, 16 ASICs per FEB/D
+# 1024/80 -- ASIC TX: 1024 clock/frame (x1 SDR), 80 bits per event
+#simultaneousChannels = min([simultaneousChannels, 126/16, 1024/80])
+
+#channelStep = int(math.ceil(32.0/simultaneousChannels))
+channelStep = 1
+
+## Take some data while saturating the range
+#for firstChannel in range(0, channelStep):
+#	activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
+#	activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
+#
+#	# Enable triggering for active channels
+#	cfg = deepcopy(asicsConfig)
+#	for ac in cfg.values():
+#		#ac.globalConfig.setValue("imirror_bias_top", 23)
+#		for channel in activeChannels:
+#			ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
+#	daqd.setAsicsConfig(cfg)
+#
+#	for phase in [float(x)/nPhases for x in range(nPhases)]:
+#		t_start = time.time()
+#		daqd.set_test_pulse_febds(511, 1024, phase, False)
+#		daqd.acquire(0.02, -1, phase)
+#		t_finish = time.time()
+#		print "Channel(s): %s Phase: %4.3f (saturation) in %3.2f seconds " % (activeChannels_string, phase, t_finish - t_start)
+
+# Main data acquisition
+for firstChannel in range(0, channelStep):
+	activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
+	activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
+        
+	# Enable triggering for active channels
+	cfg = deepcopy(asicsConfig)
+	for ac in cfg.values():
+		for channel in activeChannels:
+			ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
+	daqd.setAsicsConfig(cfg)
+
+	for phase in [float(x)/nPhases for x in range(nPhases)]:
+                t_start = time.time()
+                daqd.set_test_pulse_febds(intg_time[firstChannel], 1024, phase, False)
+                daqd.acquire(0.04, intg_time[firstChannel], phase)
+                t_finish = time.time()
+                print "Channel(s): %s Phase: %4.3f clk Length %d clk in %3.2f seconds " % (activeChannels_string, phase, intg_time[firstChannel], t_finish - t_start)
+
+systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF)

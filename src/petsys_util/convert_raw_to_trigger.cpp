@@ -92,7 +92,8 @@ public:
                   for(int ch = 0; ch < 256; ++ch)
                   {
                     TProfile* prof = (TProfile*)( pedestalFile->Get(Form("p_qfine_ch%d_2",ch)) );
-                    for(int jj = 0; jj < 4; ++jj)
+                    if( !prof ) continue;
+                    for(int jj = 0; jj < 8; ++jj)
                       (pedValues[ch])[jj] = prof->GetBinContent(jj+1);
                   }
                 }
