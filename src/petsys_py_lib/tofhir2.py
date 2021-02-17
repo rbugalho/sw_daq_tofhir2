@@ -117,7 +117,7 @@ class AsicGlobalConfig(AbstractConfig):
 			("c_tac_refresh_t", 18, 7,	3),
 			("c_counter_en", 19, 19,	0),
 			("c_counter_t", 43, 20,		0),
-			("c_l0_enable", 45, 44,		0),
+			("c_l0_enable", 45, 44,		0b11),
 			("c_l0_latency", 57, 46,	0),
 			("c_l1_enable", 59, 58,		0),
 			("c_l1_latency", 71, 60,	0),
