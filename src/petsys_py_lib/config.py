@@ -256,23 +256,23 @@ class Config:
 		tmp = { "vth_t1" : vth_t1, "vth_t2" : vth_t2, "vth_e" : vth_e }
 		return int( tmp[vth_str] + value)
                 
-	def mapALDOVoltageToDAC(self, bd, ov):
+	def mapALDOVoltageToDAC(self, (portID, slaveID, chipID), bd, ov):
                 retA = -1
                 retB = -1
                 bestA = 9999.
                 bestB = 9999.
-                for key in self.__ALDOACalibrationTable:
-                        val = self.__ALDOACalibrationTable[key]
+                for key in self.__ALDOACalibrationTable[(portID, slaveID, chipID)]:
+                        val = self.__ALDOACalibrationTable[(portID, slaveID, chipID)][key]
                         if abs( float(val) - (float(bd)+float(ov)) ) < bestA:
                                 retA = key
                                 bestA = abs( float(val) - (float(bd)+float(ov)) )
-                for key in self.__ALDOBCalibrationTable:
-                        val = self.__ALDOBCalibrationTable[key]
+                for key in self.__ALDOBCalibrationTable[(portID, slaveID, chipID)]:
+                        val = self.__ALDOBCalibrationTable[(portID, slaveID, chipID)][key]
                         if abs( float(val) - (float(bd)+float(ov)) ) < bestB:
                                 retB = key
                                 bestB = abs( float(val) - (float(bd)+float(ov)) )
-                print("A:   DAC: %d   V: %f") %(int(retA),float(self.__ALDOACalibrationTable[retA]))
-                print("B:   DAC: %d   V: %f") %(int(retB),float(self.__ALDOBCalibrationTable[retB]))
+                print("ALDO A(J2) on ASIC%d:   DAC: %d   V: %f") %(chipID,int(retA),float(self.__ALDOACalibrationTable[(portID, slaveID, chipID)][retA]))
+                print("ALDO B(J4) on ASIC%d:   DAC: %d   V: %f") %(chipID,int(retB),float(self.__ALDOBCalibrationTable[(portID, slaveID, chipID)][retB]))
                 return retA, retB
                         
 def toInt(s):
@@ -415,7 +415,11 @@ def readALDOCalibration(fn):
 	c = {}
 	for l in f:
 		l = normalizeAndSplit(l)
-                c[int(l[0])] = l[1]
+		if l == ['']: continue
+		portID, slaveID, chipID = [ int(v) for v in l[0:3] ]
+                if not (portID,slaveID,chipID) in c:
+                        c[(portID,slaveID,chipID)]= {}
+                c[(portID,slaveID,chipID)][int(l[3])] = l[4]
 	f.close()
 	return c
 

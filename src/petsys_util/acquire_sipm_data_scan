@@ -91,12 +91,12 @@ if args.trigger == "ext":
 asicsConfig = daqd.getAsicsConfig()
 
 if args.aldo:
-        for ac in asicsConfig.values():
-                gc = ac.globalConfig
-                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC(args.bd,args.ov)
+        for key in asicsConfig.keys():
+                if key[2]%2 is not 0:
+                        continue
+                gc = asicsConfig[key].globalConfig
+                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC(key,args.bd,args.ov)
                 gc.setValue("c_aldo_en", 0b11)
-                #gc.setValue("Valdo_A_Gain", 1)
-                #gc.setValue("Valdo_B_Gain", 1)
                 gc.setValue("Valdo_A_DAC", dac_A)
                 gc.setValue("Valdo_B_DAC", dac_B)
 
