@@ -36,10 +36,14 @@ parser.add_argument("--aldo", dest="aldo", action="store_true", help="switch for
 parser.add_argument("--trigger", type=str, dest="trigger", required=False, help="trigger type (none, ext, int)")
 parser.add_argument("--freq", type=float, dest="freq", required=False, help="internal trigger frequency (in kHz)")
 parser.add_argument("--phase", type=float, dest="phase", required=False, help="trigger phase (in clk)")
+parser.add_argument("--prescale", type=int, dest="prescale", required=False, help="external trigger prescale [0..63]")
 parser.add_argument("--pedestals", dest="pedestals", action="store_true", help="Enable the acquisition of pedestals")
 parser.add_argument("--enable-channels", dest="enChannels", required=False, help="comma separated vector of enabled channels")
 parser.add_argument("--fix-channels", dest="fixChannels", required=False, help="comma separated vector of channels for which vth1 is fixed at 30")
 
+
+#------------------------
+# parsing input arguments
 args = parser.parse_args()
 
 vth1_list = get_list(args.vth1)
@@ -72,6 +76,9 @@ if args.pedestals:
         command = "./acquire_qdc_calibration_fixed  --config "+args.config+" -o "+args.fileNamePrefix+"_ped1"
         os.system(command)
 
+
+#-----------------------------
+# load configuration from file
 mask = config.LOAD_ALL
 # if args.mode != "mixed":
 #         mask ^= config.LOAD_QDCMODE_MAP
@@ -82,51 +89,75 @@ daqd = daqd.Connection()
 daqd.initializeSystem()
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_ON)
 
-if args.trigger == "int":
+asicsConfig = daqd.getAsicsConfig()
+activeAsics = daqd.getActiveAsics()
+
+
+#--------------
+# trigger modes
+if args.trigger == "none":
+        print "### self-triggering mode ###"
+if args.trigger == "int"
+        # Enable INTERNAL triggers from FEB/D to J15
         daqd.write_config_register_tgr(8, 0x21A, 0x81)
         daqd.setTestPulsePLL(100, int(1./(args.freq*6.25e-06)), args.phase, False)
 if args.trigger == "ext":
-        print "FIXME"
+        # Enable EXTERNAL L1 trigger source from J15
+        daqd.write_config_register_tgr(8, 0x21A, 0x11)
+        daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (3 << 48) | ( args.prescale << 16) | (1921) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
 
-asicsConfig = daqd.getAsicsConfig()
 
+#--------------------------------------------------------------------
+# enable ALDO in case needed (it's only on even ASICs, e.g. 0,2,4...)
 if args.aldo:
-        for key in asicsConfig.keys():
-                if key[2]%2 is not 0:
+        for portID, slaveID, chipID in activeAsics:
+                if chipID%2 is not 0:
                         continue
-                gc = asicsConfig[key].globalConfig
+                gc = asicsConfig[(portID, slaveID, chipID)].globalConfig
                 dac_A, dac_B = systemConfig.mapALDOVoltageToDAC(key,args.bd,args.ov)
                 gc.setValue("c_aldo_en", 0b11)
                 gc.setValue("Valdo_A_DAC", dac_A)
                 gc.setValue("Valdo_B_DAC", dac_B)
 
-asicsConfig0 = deepcopy(asicsConfig)
-daqd.openRawAcquisition(args.fileNamePrefix)
-cfg = deepcopy(asicsConfig0)
-
 
 #------------------------------------------------
 # enable required channels (all if not specified)
-activeAsics = daqd.getActiveAsics()
 for portID, slaveID, chipID in activeAsics:
-        ac = cfg[(portID, slaveID, chipID)]
+        ac = asicsConfig[(portID, slaveID, chipID)]
         for channelID in range(32):
                 cc = ac.channelConfig[channelID]
                 cc.setValue("c_tgr_main", 0b11)
 
 if( args.enChannels ):
         for portID, slaveID, chipID in activeAsics:
-                ac = cfg[(portID, slaveID, chipID)]
+                ac = asicsConfig[(portID, slaveID, chipID)]
                 for channelID in args.enChannels:
                         cc = ac.channelConfig[int(channelID)]
                         cc.setValue("c_tgr_main", 0b00)
 
 else:
         for portID, slaveID, chipID in activeAsics:
-                ac = cfg[(portID, slaveID, chipID)]
+                ac = asicsConfig[(portID, slaveID, chipID)]
                 for channelID in range(32):
                         cc = ac.channelConfig[channelID]
                         cc.setValue("c_tgr_main", 0b00)
+
+if args.trigger == "ext":
+        for portID, slaveID, chipID in activeAsics:
+                if chipID%2 is not 0:
+                        continue
+                gc = asicsConfig[(portID, slaveID, chipID)].globalConfig
+                # Enable L1 trigger for even ASICs (with flex and ALDO)
+                gc.setValue("c_l1_enable", 0b01)
+                gc.setValue("c_l1_latency", 484)
+        # Use ASIC 1 channel 0 to timetag the trigger pulses
+        asicsConfig[(0, 0, 1)].globalConfig.setValue("c_ext_tp_en", 0b1)
+        asicsConfig[(0, 0, 1)].channelConfig[0].setValue("c_tgr_main", 0b01)
+
+
+asicsConfig0 = deepcopy(asicsConfig)
+daqd.openRawAcquisition(args.fileNamePrefix)
+cfg = deepcopy(asicsConfig0)
 
 
 #--------------------------------
