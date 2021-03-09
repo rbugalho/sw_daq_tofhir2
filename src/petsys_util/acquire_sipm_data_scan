@@ -37,6 +37,7 @@ parser.add_argument("--trigger", type=str, dest="trigger", required=False, help=
 parser.add_argument("--freq", type=float, dest="freq", required=False, help="internal trigger frequency (in kHz)")
 parser.add_argument("--phase", type=float, dest="phase", required=False, help="trigger phase (in clk)")
 parser.add_argument("--prescale", type=int, dest="prescale", required=False, help="external trigger prescale [0..63]")
+parser.add_argument("--l1", dest="l1", action="store_true", help="Enable the L1 filtering")
 parser.add_argument("--pedestals", dest="pedestals", action="store_true", help="Enable the acquisition of pedestals")
 parser.add_argument("--enable-channels", dest="enChannels", required=False, help="comma separated vector of enabled channels")
 parser.add_argument("--fix-channels", dest="fixChannels", required=False, help="comma separated vector of channels for which vth1 is fixed at 30")
@@ -145,7 +146,10 @@ if args.trigger == "ext":
                         continue
                 gc = asicsConfig[(portID, slaveID, chipID)].globalConfig
                 # Enable L1 trigger for even ASICs (with flex and ALDO)
-                gc.setValue("c_l1_enable", 0b00)
+                if args.l1 :
+                        gc.setValue("c_l1_enable", 0b01)
+                else:
+                        gc.setValue("c_l1_enable", 0b00)
                 gc.setValue("c_l1_latency", 484) # Delay expected by ASIC in 25 ns increments
         # Use ASIC 1 channel 0 to timetag the trigger pulses
         asicsConfig[(0, 0, 3)].globalConfig.setValue("c_ext_tp_en", 0b1)
