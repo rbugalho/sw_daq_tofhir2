@@ -64,12 +64,12 @@ if( args.fixChannels ):
         #print(args.fixChannels)
 
 if not args.fileNamePrefix:
-        with open('/data/TOFHIR2/last_run') as f:
+        with open('/data/tofhir2/last_run') as f:
                 run = [int(x) for x in next(f).split()]
-                os.remove('/data/TOFHIR2/last_run')
-                with open('/data/TOFHIR2/last_run','w+') as f:
+                os.remove('/data/tofhir2/last_run')
+                with open('/data/tofhir2/last_run','w+') as f:
                         f.write(str(run[0]+1))
-        args.fileNamePrefix = "/data/TOFHIR2/raw/run%04d" % (run[0]+1)
+        args.fileNamePrefix = "/data/tofhir2/raw/run%04d" % (run[0]+1)
 
 if args.pedestals:
         print("INFO: acquiring pedestals")
@@ -97,27 +97,24 @@ activeAsics = daqd.getActiveAsics()
 # trigger modes
 if args.trigger == "none":
         print "### self-triggering mode ###"
-if args.trigger == "int"
+if args.trigger == "int":
         # Enable INTERNAL triggers from FEB/D to J15
         daqd.write_config_register_tgr(8, 0x21A, 0x81)
         daqd.setTestPulsePLL(100, int(1./(args.freq*6.25e-06)), args.phase, False)
 if args.trigger == "ext":
         # Enable EXTERNAL L1 trigger source from J15
+        ext_delay = 1917 # Delay added by FPGA in 6.25 ns increments
         daqd.write_config_register_tgr(8, 0x21A, 0x11)
-        daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (3 << 48) | ( args.prescale << 16) | (1921) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
-
+        daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (0<<62) | (3 << 48) | ( args.prescale << 16) | (ext_delay) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
 
 #--------------------------------------------------------------------
 # enable ALDO in case needed (it's only on even ASICs, e.g. 0,2,4...)
 if args.aldo:
-        for portID, slaveID, chipID in activeAsics:
-                if chipID%2 is not 0:
-                        continue
-                gc = asicsConfig[(portID, slaveID, chipID)].globalConfig
-                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC(key,args.bd,args.ov)
-                gc.setValue("c_aldo_en", 0b11)
-                gc.setValue("Valdo_A_DAC", dac_A)
-                gc.setValue("Valdo_B_DAC", dac_B)
+        hvdac_config = daqd.get_hvdac_config()
+        for portID, slaveID, railID in hvdac_config.keys():
+                #print portID, slaveID, railID
+                hvdac_config[(portID, slaveID, railID)] = systemConfig.mapBiasChannelVoltageToDAC((portID, slaveID, railID), 45)
+        daqd.set_hvdac_config(hvdac_config)
 
 
 #------------------------------------------------
@@ -148,11 +145,13 @@ if args.trigger == "ext":
                         continue
                 gc = asicsConfig[(portID, slaveID, chipID)].globalConfig
                 # Enable L1 trigger for even ASICs (with flex and ALDO)
-                gc.setValue("c_l1_enable", 0b01)
-                gc.setValue("c_l1_latency", 484)
+                gc.setValue("c_l1_enable", 0b00)
+                gc.setValue("c_l1_latency", 484) # Delay expected by ASIC in 25 ns increments
         # Use ASIC 1 channel 0 to timetag the trigger pulses
-        asicsConfig[(0, 0, 1)].globalConfig.setValue("c_ext_tp_en", 0b1)
-        asicsConfig[(0, 0, 1)].channelConfig[0].setValue("c_tgr_main", 0b01)
+        asicsConfig[(0, 0, 3)].globalConfig.setValue("c_ext_tp_en", 0b1)
+        asicsConfig[(0, 0, 3)].channelConfig[0].setValue("c_tgr_main", 0b01)
+        #asicsConfig[(0, 0, 2)].globalConfig.setValue("c_ext_tp_en", 0b1)
+        #asicsConfig[(0, 0, 2)].channelConfig[15].setValue("c_tgr_main", 0b01)
 
 
 asicsConfig0 = deepcopy(asicsConfig)
@@ -208,10 +207,24 @@ for vth1 in vth1_list:
                                                 biasVoltageConfig[key] = dac_setting
                                                 daqd.set_hvdac_config(biasVoltageConfig)
                                 
-                                daqd.setAsicsConfig(cfg)
-                                sleep(0.1)
-                                print "ov: %3.1f,   vth1: %2d,   vth2: %2d,   vthe: %2d" % (float(ov), int(vth1), int(vth2), int(vthe))
-                                daqd.acquire(args.time, float(ov), 10000*(int(vth1)+1)+100*(int(vth2)+1)+int(vthe)+1)
+                                if args.aldo:
+                                        for portID, slaveID, chipID in activeAsics:
+                                                if chipID%2 is not 0:
+                                                        continue
+                                                gc = (cfg[(portID, slaveID, chipID)]).globalConfig
+                                                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC((portID, slaveID, chipID),args.bd,float(ov))
+                                                gc.setValue("c_aldo_en", 0b11)
+                                                gc.setValue("Valdo_A_DAC", dac_A)
+                                                gc.setValue("Valdo_B_DAC", dac_B)
+                                                
+                                #for ext_delay in range(1890, 1920):
+				for _ in range(1):
+                                        daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (0 << 62) | (3 << 48) | ( args.prescale << 16) | (ext_delay) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
+                                        
+                                	daqd.setAsicsConfig(cfg)
+		                	sleep(0.1)
+		                	print "ov: %3.1f,   vth1: %2d,   vth2: %2d,   vthe: %2d   ext_delay: %d" % (float(ov), int(vth1), int(vth2), int(vthe), ext_delay)
+		                	daqd.acquire(args.time, float(ov), 10000*(int(vth1)+1)+100*(int(vth2)+1)+int(vthe)+1)
                                         
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF)
 daqd.setTestPulseNone()

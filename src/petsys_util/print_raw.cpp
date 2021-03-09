@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 				
 				
 				printf("%04d %016llx %016llx", 2+2*i,  tmpRawDataFrame->data[2+2*i+0], tmpRawDataFrame->data[2+2*i+1]);
-				printf(" ChannelID: (%02d %02d %02d %02d)", (channelID >> 17) % 32, (channelID >> 12) % 32, (channelID >> 6) % 64, (channelID % 64));
+				printf(" ChannelID: (%02d %02d %02d %02d)", (channelID >> 16) % 32, (channelID >> 11) % 32, (channelID >> 5) % 63, (channelID % 32));
 				printf(" TacID: %d T1C: %4d T2C: %4d QC %4d T1F %4d T2F %4d QF %4d", tacID, t1Coarse, t2Coarse, qCoarse, t1Fine, t2Fine, qFine);
 				printf("\n");
 			}

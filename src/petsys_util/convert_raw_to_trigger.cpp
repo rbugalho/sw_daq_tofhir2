@@ -45,27 +45,27 @@ private:
 	long long 	brStepEnd;
 
 	unsigned short	brN;
-	unsigned short	brJ[256];
-	long long	brTime[256];
-	long long	brTimeDelta[256];
-	unsigned int	brChannelID[256];
-	unsigned int    brChannelCount[256];
-	float		brToT[256];
-	float		brT1Coarse[256];
-	float		brT1Fine[256];
-	float		brT2Coarse[256];
-	float		brT2Fine[256];
-	float		brQCoarse[256];
-	float		brQFine[256];
-	float		brEnergy[256];
-	float		brQT1[256];
-	float		brQT2[256];
-	unsigned short	brTacID[256];
-	int		brXi[256];
-	int		brYi[256];
-	float		brX[256];
-	float 		brY[256];
-	float 		brZ[256];
+	unsigned short	brJ[128];
+	long long	brTime[128];
+	long long	brTimeDelta[128];
+	unsigned int	brChannelID[128];
+	unsigned int    brChannelCount[128];
+	float		brToT[128];
+	float		brT1Coarse[128];
+	float		brT1Fine[128];
+	float		brT2Coarse[128];
+	float		brT2Fine[128];
+	float		brQCoarse[128];
+	float		brQFine[128];
+	float		brEnergy[128];
+	float		brQT1[128];
+	float		brQT2[128];
+	unsigned short	brTacID[128];
+	int		brXi[128];
+	int		brYi[128];
+	float		brX[128];
+	float 		brY[128];
+	float 		brZ[128];
 	
 	struct Event {
 		uint8_t mh_n; 
@@ -89,7 +89,7 @@ public:
                 if( pedestalFile != NULL )
                 {
                   std::cout << "pedestals!" << std::endl;
-                  for(int ch = 0; ch < 256; ++ch)
+                  for(int ch = 0; ch < 128; ++ch)
                   {
                     TProfile* prof = (TProfile*)( pedestalFile->Get(Form("p_qfine_ch%d_2",ch)) );
                     if( !prof ) continue;
@@ -110,27 +110,27 @@ public:
 			hData->Branch("step2", &brStep2, bs);
 			
 			hData->Branch("mh_n", &brN, bs);
-			hData->Branch("mh_j", brJ, "mh_j[256]/s");
-			hData->Branch("tot", brToT, "tot[256]/F");
-			hData->Branch("t1coarse", brT1Coarse, "t1coarse[256]/F");
-			hData->Branch("t1fine", brT1Fine, "t1fine[256]/F");
-			hData->Branch("t2coarse", brT2Coarse, "t2coarse[256]/F");
-			hData->Branch("t2fine", brT2Fine, "t2fine[256]/F");
-			hData->Branch("qcoarse", brQCoarse, "qcoarse[256]/F");
-			hData->Branch("qfine", brQFine, "qfine[256]/F");
-			hData->Branch("time", brTime, "time[256]/L");
-			hData->Branch("timeDelta", brTimeDelta, "timeDelta[256]/L");
-			hData->Branch("channelID", brChannelID, "channelID[256]/i");
-			hData->Branch("channelCount", brChannelCount, "channelCount[256]/i");
-			hData->Branch("energy", brEnergy, "energy[256]/F");
-			hData->Branch("qT1", brQT1, "qT1[256]/F");
-			hData->Branch("qT2", brQT2, "qT2[256]/F");
-			hData->Branch("tacID", brTacID, "tacID[256]/s");
-			hData->Branch("xi", brXi, "xi[256]/I");
-			hData->Branch("yi", brYi, "yi[256]/I");
-			hData->Branch("x", brX, "x[256]/F");
-			hData->Branch("y", brY, "y[256]/F");
-			hData->Branch("z", brZ, "z[256]/F");
+			hData->Branch("mh_j", brJ, "mh_j[128]/s");
+			hData->Branch("tot", brToT, "tot[128]/F");
+			hData->Branch("t1coarse", brT1Coarse, "t1coarse[128]/F");
+			hData->Branch("t1fine", brT1Fine, "t1fine[128]/F");
+			hData->Branch("t2coarse", brT2Coarse, "t2coarse[128]/F");
+			hData->Branch("t2fine", brT2Fine, "t2fine[128]/F");
+			hData->Branch("qcoarse", brQCoarse, "qcoarse[128]/F");
+			hData->Branch("qfine", brQFine, "qfine[128]/F");
+			hData->Branch("time", brTime, "time[128]/L");
+			hData->Branch("timeDelta", brTimeDelta, "timeDelta[128]/L");
+			hData->Branch("channelID", brChannelID, "channelID[128]/i");
+			hData->Branch("channelCount", brChannelCount, "channelCount[128]/i");
+			hData->Branch("energy", brEnergy, "energy[128]/F");
+			hData->Branch("qT1", brQT1, "qT1[128]/F");
+			hData->Branch("qT2", brQT2, "qT2[128]/F");
+			hData->Branch("tacID", brTacID, "tacID[128]/s");
+			hData->Branch("xi", brXi, "xi[128]/I");
+			hData->Branch("yi", brYi, "yi[128]/I");
+			hData->Branch("x", brX, "x[128]/F");
+			hData->Branch("y", brY, "y[128]/F");
+			hData->Branch("z", brZ, "z[128]/F");
 			hIndex = new TTree("index", "Step Index", 2);
 			hIndex->Branch("step1", &brStep1, bs);
 			hIndex->Branch("step2", &brStep2, bs);
@@ -204,7 +204,7 @@ public:
 
 			GammaPhoton &p = buffer->get(i);
 			
-                        for(unsigned int m = 0; m < 256; ++m){
+                        for(unsigned int m = 0; m < 128; ++m){
                             brJ[m] = 0;
                             brTime[m] = 0;
                             brTimeDelta[m] = 0;
@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
         char *inputFilePrefix = NULL;
         char *outputFileName = NULL;
 	FILE_TYPE fileType = FILE_TEXT;
-	int hitLimitToWrite = 256;
+	int hitLimitToWrite = 128;
 	long long eventFractionToWrite = 1024;
         bool coincidence = false;
         int refChannel = -1;
