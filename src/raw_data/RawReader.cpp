@@ -316,7 +316,7 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		fprintf(stderr, " events frames\n");
 		fprintf(stderr, " %10lld total\n", nEventsNoLost + nEventsSomeLost);
 		long long goodFrames = step.stepLastFrame - step.stepFirstFrame - nFrameLost0 - nFrameLostN;
-		fprintf(stderr, " %10.1f events per frame avergage\n", 1.0 * nEventsNoLost / goodFrames);
+		fprintf(stderr, " %10.1f events per frame average\n", 1.0 * nEventsNoLost / goodFrames);
 		sink->report();
 	}
 
