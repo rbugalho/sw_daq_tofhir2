@@ -49,6 +49,8 @@ private:
 	float 		brZ;
 	float		brTQT;
 	float		brTQE;
+	long long	brPrevEventTime;
+	unsigned short	brPrevEventFlags;
 	
 
 	struct Event {
@@ -85,6 +87,8 @@ public:
 			hData->Branch("z", &brZ, bs);
 			hData->Branch("tqT", &brTQT, bs);
 			hData->Branch("tqE", &brTQE, bs);
+			hData->Branch("prevEventTime", &brPrevEventTime, bs);
+			hData->Branch("prevEventFlags", &brPrevEventFlags, bs);
 			
 			hIndex = new TTree("index", "Step Index", 2);
 			hIndex->Branch("step1", &brStep1, bs);
@@ -174,6 +178,8 @@ public:
 				brZ = hit.z;
 				brXi = hit.xi;
 				brYi = hit.yi;
+				brPrevEventTime = ((long long)((hit.raw->time - hit.raw->prevEventTime) * Tps));
+				brPrevEventFlags = hit.raw->prevEventFlags;
 				
 				hData->Fill();
 			}

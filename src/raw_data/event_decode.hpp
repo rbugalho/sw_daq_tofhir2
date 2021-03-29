@@ -23,8 +23,8 @@ public:
 	unsigned short getQFine()	{ return (word >> 43) % 1024; };
 	unsigned short getT2Fine()	{ return (word >> 33) % 1024; };
 	unsigned short getT1Fine()	{ return (word >> 23) % 1024; };
-	unsigned short getIdleTime()	{ return (word >> 13) % 1024; };
-	unsigned short getTriggerBits()	{ return (word >> 8) % 16; };
+	unsigned short getPrevEventTime()	{ return (word >> 13) % 1024; };
+	unsigned short getPrevEventFlags()	{ return (word >> 8) % 16; };
 	unsigned short getTacID()	{ return (word >> 5) % 8; };
 	unsigned int getChannelID()   { 
 		unsigned __int128 asicID = (word >> 83) % 8;
