@@ -97,6 +97,9 @@ target_link_libraries("convert_raw_to_group" common)
 add_executable("convert_raw_to_trigger" "src/petsys_util/convert_raw_to_trigger.cpp" )
 target_link_libraries("convert_raw_to_trigger" common)
 
+add_executable("convert_raw_to_event" "src/petsys_util/convert_raw_to_event.cpp" )
+target_link_libraries("convert_raw_to_event" common)
+
 add_executable("convert_raw_to_coincidence" "src/petsys_util/convert_raw_to_coincidence.cpp" )
 target_link_libraries("convert_raw_to_coincidence" common)
 

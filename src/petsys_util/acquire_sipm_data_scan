@@ -21,7 +21,7 @@ def get_list(input_list):
         return vals
 
 
-parser = argparse.ArgumentParser(description='Acquire data for TDC calibration')
+parser = argparse.ArgumentParser(description='Acquire SiPM data')
 parser.add_argument("--config", type=str, required=True, help="Configuration file")
 parser.add_argument("-o", type=str, dest="fileNamePrefix", required=False, help="Data filename (prefix)")
 parser.add_argument("--time", type=float, required=True, help="Acquisition time (in seconds)")
@@ -31,7 +31,6 @@ parser.add_argument("--vth2", type=str, dest="vth2", required=True, help="comma 
 parser.add_argument("--vthe", type=str, dest="vthe", required=True, help="comma separated values for vthe")
 parser.add_argument("--taps", type=str, dest="taps", required=False, help="number of taps [0..6]")
 parser.add_argument("--ov", type=str, dest="ov", required=True, help="comma separated values for ov")
-parser.add_argument("--bd", type=str, dest="bd", required=True, help="breakdown voltage")
 parser.add_argument("--aldo", dest="aldo", action="store_true", help="switch for ALDO usage")
 parser.add_argument("--trigger", type=str, dest="trigger", required=False, help="trigger type (none, ext, int)")
 parser.add_argument("--freq", type=float, dest="freq", required=False, help="internal trigger frequency (in kHz)")
@@ -58,19 +57,17 @@ if args.taps:
 
 if( args.enChannels ):
         args.enChannels = args.enChannels.split(',')
-        #print(args.enChannels)
 
 if( args.fixChannels ):
         args.fixChannels = args.fixChannels.split(',')
-        #print(args.fixChannels)
 
 if not args.fileNamePrefix:
-        with open('/data/tofhir2/last_run') as f:
+        with open('/data/TOFHIR2/last_run') as f:
                 run = [int(x) for x in next(f).split()]
-                os.remove('/data/tofhir2/last_run')
-                with open('/data/tofhir2/last_run','w+') as f:
+                os.remove('/data/TOFHIR2/last_run')
+                with open('/data/TOFHIR2/last_run','w+') as f:
                         f.write(str(run[0]+1))
-        args.fileNamePrefix = "/data/tofhir2/raw/run%04d" % (run[0]+1)
+        args.fileNamePrefix = "/data/TOFHIR2/raw/run%04d" % (run[0]+1)
 
 if args.pedestals:
         print("INFO: acquiring pedestals")
@@ -108,13 +105,14 @@ if args.trigger == "ext":
         daqd.write_config_register_tgr(8, 0x21A, 0x11)
         daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (0<<62) | (3 << 48) | ( args.prescale << 16) | (ext_delay) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
 
+
 #--------------------------------------------------------------------
 # enable ALDO in case needed (it's only on even ASICs, e.g. 0,2,4...)
 if args.aldo:
         hvdac_config = daqd.get_hvdac_config()
         for portID, slaveID, railID in hvdac_config.keys():
-                #print portID, slaveID, railID
-                hvdac_config[(portID, slaveID, railID)] = systemConfig.mapBiasChannelVoltageToDAC((portID, slaveID, railID), 45)
+                # set 48 V as ALDO input bias (should not exceed this value)
+                hvdac_config[(portID, slaveID, railID)] = systemConfig.mapBiasChannelVoltageToDAC((portID, slaveID, railID), 48)
         daqd.set_hvdac_config(hvdac_config)
 
 
@@ -152,10 +150,8 @@ if args.trigger == "ext":
                         gc.setValue("c_l1_enable", 0b00)
                 gc.setValue("c_l1_latency", 484) # Delay expected by ASIC in 25 ns increments
         # Use ASIC 1 channel 0 to timetag the trigger pulses
-        asicsConfig[(0, 0, 3)].globalConfig.setValue("c_ext_tp_en", 0b1)
-        asicsConfig[(0, 0, 3)].channelConfig[0].setValue("c_tgr_main", 0b01)
-        #asicsConfig[(0, 0, 2)].globalConfig.setValue("c_ext_tp_en", 0b1)
-        #asicsConfig[(0, 0, 2)].channelConfig[15].setValue("c_tgr_main", 0b01)
+        asicsConfig[(0, 0, 1)].globalConfig.setValue("c_ext_tp_en", 0b1)
+        asicsConfig[(0, 0, 1)].channelConfig[0].setValue("c_tgr_main", 0b01)
 
 
 asicsConfig0 = deepcopy(asicsConfig)
@@ -176,8 +172,8 @@ for vth1 in vth1_list:
                                                 cc = ac.channelConfig[int(channelID)]
                                                 
                                                 #cc.setValue("cfg_a3_vth_t1", vth1)
-                                                #cc.setValue("cfg_a3_vth_t2", dac_setting_vth2)
-                                                #cc.setValue("cfg_a3_vth_e", dac_setting_vthe)
+                                                #cc.setValue("cfg_a3_vth_t2", vth2)
+                                                #cc.setValue("cfg_a3_vth_e", vthe)
                                                 
                                                 dac_setting_vth1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(vth1))
                                                 cc.setValue("cfg_a3_vth_t1", dac_setting_vth1)
@@ -193,13 +189,15 @@ for vth1 in vth1_list:
                                         for ac in cfg.values():
                                                 for ch in args.fixChannels:
                                                         
+                                                        print "fixing channel %d" % int(ch)
+                                                                                                                
                                                         #cc.setValue("cfg_a3_vth_t1", 10)
                                                         #cc.setValue("cfg_a3_vth_t2", 10)
-                                                        print "fixing channel %d" % int(ch)
+                                                        
                                                         cc = ac.channelConfig[int(ch)]
-                                                        dac_setting_vth1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(15))
+                                                        dac_setting_vth1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(10))
                                                         cc.setValue("cfg_a3_vth_t1", dac_setting_vth1)
-                                                        dac_setting_vth2 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", int(15))
+                                                        dac_setting_vth2 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", int(10))
                                                         cc.setValue("cfg_a3_vth_t2", dac_setting_vth2)
                                 
                                 if not args.aldo:
@@ -215,20 +213,17 @@ for vth1 in vth1_list:
                                         for portID, slaveID, chipID in activeAsics:
                                                 if chipID%2 is not 0:
                                                         continue
+                                                bd, over__ = systemConfig.getBiasChannelDefaultSettingsAldo((portID, slaveID, chipID))
                                                 gc = (cfg[(portID, slaveID, chipID)]).globalConfig
-                                                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC((portID, slaveID, chipID),args.bd,float(ov))
+                                                dac_A, dac_B = systemConfig.mapALDOVoltageToDAC((portID, slaveID, chipID),bd,float(ov))
                                                 gc.setValue("c_aldo_en", 0b11)
                                                 gc.setValue("Valdo_A_DAC", dac_A)
                                                 gc.setValue("Valdo_B_DAC", dac_B)
                                                 
-                                #for ext_delay in range(1890, 1920):
-				for _ in range(1):
-                                        daqd.write_config_register_tgr(64, 0x02A0, (1<<63) | (0 << 62) | (3 << 48) | ( args.prescale << 16) | (ext_delay) ) # prescale: 0..63 -- 0 is 0%, 63 is 63/64%
-                                        
-                                	daqd.setAsicsConfig(cfg)
-		                	sleep(0.1)
-		                	print "ov: %3.1f,   vth1: %2d,   vth2: %2d,   vthe: %2d   ext_delay: %d" % (float(ov), int(vth1), int(vth2), int(vthe), ext_delay)
-		                	daqd.acquire(args.time, float(ov), 10000*(int(vth1)+1)+100*(int(vth2)+1)+int(vthe)+1)
+                                daqd.setAsicsConfig(cfg)
+                                sleep(0.1)
+                                print "ov: %3.1f,   vth1: %2d,   vth2: %2d,   vthe: %2d" % (float(ov), int(vth1), int(vth2), int(vthe))
+                                daqd.acquire(args.time, float(ov), 10000*(int(vth1)+1)+100*(int(vth2)+1)+int(vthe)+1)
                                         
 systemConfig.loadToHardware(daqd, bias_enable=config.APPLY_BIAS_OFF)
 daqd.setTestPulseNone()

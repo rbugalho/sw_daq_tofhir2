@@ -14,7 +14,8 @@ LOAD_DISC_CALIBRATION	= 0x00000004
 LOAD_DISC_SETTINGS	= 0x00000008
 LOAD_MAP		= 0x00000010
 LOAD_QDCMODE_MAP	= 0x00000020
-LOAD_ALDO_CALIBRATION	= 0x00000030
+LOAD_BIAS_SETTINGS_ALDO	= 0x00000030
+LOAD_ALDO_CALIBRATION	= 0x00000040
 LOAD_ALL		= 0xFFFFFFFF
 
 APPLY_BIAS_OFF		= 0x0
@@ -48,6 +49,13 @@ def ConfigFromFile(configFileName, loadMask=LOAD_ALL):
 		t = readSiPMBiasTable(fn)
 		config._Config__biasChannelSettingsTable = t
 		config._Config__loadMask |= LOAD_BIAS_SETTINGS
+
+	if (loadMask & LOAD_BIAS_SETTINGS_ALDO) != 0:
+		fn = configParser.get("main", "bias_settings_table_aldo")
+		fn = replace_variables(fn, cdir)
+		t = readSiPMBiasTableAldo(fn)
+		config._Config__biasChannelSettingsTableAldo = t
+		config._Config__loadMask |= LOAD_BIAS_SETTINGS_ALDO
 
 	if (loadMask & LOAD_DISC_CALIBRATION) != 0:
 		fn = configParser.get("main", "disc_calibration_table")
@@ -115,6 +123,7 @@ class Config:
 		self.__asicChannelThresholdSettingsTable = {}
                 self.__asicChannelQDCModeTable = {}
 		self.__asicParameterTable = {}
+		self.__biasChannelSettingsTableAldo = {}
 		self.__ALDOACalibrationTable = {}
 		self.__ALDOBCalibrationTable = {}
 		self.__hw_trigger = None
@@ -222,6 +231,9 @@ class Config:
 		return self.__biasChannelCalibrationTable.keys()
 	
 	def getBiasChannelDefaultSettings(self, key):
+		return self.__biasChannelSettingsTable[key]
+
+	def getBiasChannelDefaultSettingsAldo(self, key):
 		return self.__biasChannelSettingsTable[key]
 		
 	def mapBiasChannelVoltageToDAC(self, key, voltage):
@@ -367,6 +379,17 @@ def readSiPMBiasTable(fn):
 		if l == ['']: continue
 		portID, slaveID, channelID = [ int(v) for v in l[0:3] ]
 		c[(portID, slaveID, channelID)] = [ float(v) for v in l[3:7] ]
+	f.close()
+	return c
+
+def readSiPMBiasTableAldo(fn):
+	f = open(fn)
+	c = {}
+	for l in f:
+		l = normalizeAndSplit(l)
+		if l == ['']: continue
+		portID, slaveID, chipID = [ int(v) for v in l[0:3] ]
+		c[(portID, slaveID, chipID)] = [ float(v) for v in l[3:5] ]
 	f.close()
 	return c
 
