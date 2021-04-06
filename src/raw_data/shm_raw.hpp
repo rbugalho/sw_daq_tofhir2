@@ -91,8 +91,8 @@ public:
 	unsigned short getT2Coarse(int index, int event)    { return getRawDataFrame(index)->getEventWord(event).getT2Coarse(); };
 	unsigned short getT1Fine(int index, int event)      { return getRawDataFrame(index)->getEventWord(event).getT1Fine(); };
 	unsigned short getT1Coarse(int index, int event)    { return getRawDataFrame(index)->getEventWord(event).getT1Coarse(); };
-	unsigned short getIdleTime(int index, int event)    { return getRawDataFrame(index)->getEventWord(event).getIdleTime(); };
-	unsigned short getTriggerBits(int index, int event) { return getRawDataFrame(index)->getEventWord(event).getTriggerBits(); };
+	unsigned short getPrevEventTime(int index, int event)    { return getRawDataFrame(index)->getEventWord(event).getPrevEventTime(); };
+	unsigned short getPrevEventFlags(int index, int event) { return getRawDataFrame(index)->getEventWord(event).getPrevEventFlags(); };
 	unsigned short getTacID(int index, int event)       { return getRawDataFrame(index)->getEventWord(event).getTacID(); };
 	unsigned int getChannelID(int index, int event)   { return getRawDataFrame(index)->getEventWord(event).getChannelID(); };
 

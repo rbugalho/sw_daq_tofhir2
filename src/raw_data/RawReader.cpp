@@ -276,23 +276,27 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 			
 			RawEventWord eventWord = dataFrame->getEventWord(i);
 			
-			e.frameID 	= frameID;
 			e.channelID	= eventWord.getChannelID();
 			e.tacID		= eventWord.getTacID();
-			e.t1coarse	= eventWord.getT1Coarse();
 			e.t1fine	= eventWord.getT1Fine();
-			e.t2coarse	= eventWord.getT2Coarse();
 			e.t2fine	= eventWord.getT2Fine();
-			e.qcoarse	= eventWord.getQCoarse();
 			e.qfine		= eventWord.getQFine();
-			e.triggerBits	= eventWord.getTriggerBits();
-			e.idleTime	= eventWord.getIdleTime();
-			//fprintf(stderr, "DEBUG %hu %hu %hu\n", e.t1coarse, e.t2coarse, e.qcoarse);
+			e.prevEventFlags= eventWord.getPrevEventFlags();
+
+			unsigned long long t1 = (frameID << 10) | eventWord.getT1Coarse();
+			unsigned long long t2 = (t1 & 0xFFFFFFFFFFFFFC00) | eventWord.getT2Coarse();
+			unsigned long long tq = (t1 & 0xFFFFFFFFFFFFFC00) | eventWord.getQCoarse();
+			unsigned long long tp = (t1 & 0xFFFFFFFFFFFFF000) | (eventWord.getPrevEventTime() << 2);
+
+			if(t2 < t1) t2 += 1024;
+			if(tq < t1) tq += 1024;
+			if(tp >= t1) tp -= 4096;
 			
-			e.time = (frameID - currentBufferFirstFrame) * 1024 + e.t1coarse;
-			e.timeEnd = (frameID - currentBufferFirstFrame) * 1024 + e.t2coarse;
-			if((e.timeEnd - e.time) < -256) e.timeEnd += 1024;
-			
+			e.time = t1 - (currentBufferFirstFrame * 1024);
+			e.timeEnd = t2 - (currentBufferFirstFrame * 1024);
+			e.timeEndQ = tq - (currentBufferFirstFrame * 1024);
+			e.prevEventTime = tp - (currentBufferFirstFrame * 1024);
+
 			e.valid = true;
 			
 			outBuffer->pushWriteSlot();
@@ -316,7 +320,7 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		fprintf(stderr, " events frames\n");
 		fprintf(stderr, " %10lld total\n", nEventsNoLost + nEventsSomeLost);
 		long long goodFrames = step.stepLastFrame - step.stepFirstFrame - nFrameLost0 - nFrameLostN;
-		fprintf(stderr, " %10.1f events per frame avergage\n", 1.0 * nEventsNoLost / goodFrames);
+		fprintf(stderr, " %10.1f events per frame average\n", 1.0 * nEventsNoLost / goodFrames);
 		sink->report();
 	}
 

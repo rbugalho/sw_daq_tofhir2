@@ -83,7 +83,7 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 			out.energy = in.qfine;
 			if(useQDC) {
 			
-				float ti = in.qcoarse - in.t1coarse;
+				float ti = in.timeEndQ - in.time;
 				if(ti < -256) ti += 1024;
 				
 				// Convert ADC into equivalent DC integration time t_eq

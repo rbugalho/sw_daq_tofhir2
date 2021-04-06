@@ -42,8 +42,8 @@ private:
 	unsigned short	brT1Fine;
 	unsigned short	brT2Fine;
 	unsigned short	brQFine;
-	unsigned short	brTIdle;
-	unsigned short	brTgrBits;
+	unsigned short	brPrevEventTime;
+	unsigned short	brPrevEventFlags;
 
 	
 	
@@ -73,8 +73,8 @@ public:
 			hData->Branch("t2fine", &brT2Fine, bs);
 			hData->Branch("qcoarse", &brQCoarse, bs);
 			hData->Branch("qfine", &brQFine, bs);
-			hData->Branch("tidle", &brTIdle, bs);
-			hData->Branch("tgrbits", &brTgrBits, bs);
+			hData->Branch("prevEventTime", &brPrevEventTime, bs);
+			hData->Branch("prevEventFlags", &brPrevEventFlags, bs);
 			
 			hIndex = new TTree("index", "Step Index", 2);
 			hIndex->Branch("step1", &brStep1, bs);
@@ -126,24 +126,24 @@ public:
 				brStep1 = step1;
 				brStep2 = step2;
 				
-				brFrameID = hit.frameID;
+				brFrameID = hit.time >> 10;
 				brChannelID = hit.channelID;
 				brTacID = hit.tacID;
-				brT1Coarse = hit.t1coarse;
+				brT1Coarse = hit.time & 0x3FF;
 				brT1Fine = hit.t1fine;
-				brT2Coarse = hit.t2coarse;
+				brT2Coarse = hit.timeEnd & 0x3FF;
 				brT2Fine = hit.t2fine;
-				brQCoarse = hit.qcoarse;
+				brQCoarse = hit.timeEnd & 0x3FF;
 				brQFine = hit.qfine;
-				brTIdle = hit.idleTime;
-				brTgrBits = hit.triggerBits;
+				brPrevEventTime = hit.prevEventTime;
+				brPrevEventFlags = hit.prevEventFlags;
 				hData->Fill();
 			}
 			else {
 				fprintf(dataFile, "%lld\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\t%hu\n",
-					hit.frameID,
+					hit.time >> 10,
 					hit.channelID, hit.tacID,
-					hit.t1coarse, hit.t2coarse, hit.qcoarse,
+					hit.time & 0x3FF, hit.timeEnd & 0x3FF, hit.timeEndQ & 0x3FF,
 					hit.t1fine, hit.t2fine, hit.qfine
 				);
 			}

@@ -9,20 +9,17 @@ namespace PETSYS {
 
 	struct RawHit {
 		bool valid;
-		double time;
-		double timeEnd;
+		long time;
+		long timeEnd;
+		long timeEndQ;
+		unsigned short prevEventFlags;
+		long prevEventTime;
 		unsigned int channelID;
 
-		unsigned long frameID;
-		unsigned short t1coarse;
-		unsigned short t2coarse;
-		unsigned short qcoarse;
 		unsigned short t1fine;
 		unsigned short t2fine;
 		unsigned short qfine;
 		unsigned short tacID;
-		unsigned short idleTime;
-		unsigned short triggerBits;
 
 		RawHit() {
 			valid = false;
