@@ -32,7 +32,10 @@ namespace PETSYS {
 		double time;
 		double timeEnd;
 		float energy;
-
+		
+		float qT1;
+		float qT2;
+		
 		short region;
 		short xi;
 		short yi;
