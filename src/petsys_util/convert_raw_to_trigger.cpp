@@ -251,11 +251,11 @@ public:
                                           brChannelID[h.raw->channelID] = h.raw->channelID;
                                           brChannelCount[h.raw->channelID] += 1;
                                           brToT[h.raw->channelID] = (h.timeEnd - h.time) * Tps;
-					  brT1Coarse[h.raw->channelID] = h.raw->t1coarse;
+					  brT1Coarse[h.raw->channelID] = h.raw->time & 0x1FFF;
 					  brT1Fine[h.raw->channelID] = h.raw->t1fine;
-					  brT2Coarse[h.raw->channelID] = h.raw->t2coarse;
+					  brT2Coarse[h.raw->channelID] = h.raw->timeEnd & 0x3FF;
 					  brT2Fine[h.raw->channelID] = h.raw->t2fine;
-                                          brQCoarse[h.raw->channelID] = h.raw->qcoarse;
+                                          brQCoarse[h.raw->channelID] = h.raw->timeEndQ & 0x3FF;
                                           brQFine[h.raw->channelID] = h.raw->qfine;
                                           if( !pedestals ) brEnergy[h.raw->channelID] = h.energy * Eunit;
                                           else brEnergy[h.raw->channelID] = h.raw->qfine -(pedValues[h.raw->channelID])[h.raw->tacID];
