@@ -37,15 +37,15 @@ private:
 	long long 	brStepBegin;
 	long long 	brStepEnd;
 
-	long long	brTime;
+	double   	brTime;
 	unsigned int	brChannelID;
 	float		brToT;
-        float           brT1Coarse;
-        float           brT1Fine;
-        float           brT2Coarse;
-        float           brT2Fine;
-        float           brQCoarse;
-        float           brQFine;
+        unsigned short  brT1Coarse;
+        unsigned short  brT1Fine;
+        unsigned short  brT2Coarse;
+        unsigned short  brT2Fine;
+        unsigned short  brQCoarse;
+        unsigned short  brQFine;
 	float		brEnergy;
 	float		brQT1;
 	float		brQT2;
@@ -185,11 +185,11 @@ public:
 				brTime = ((long long)(hit.time * Tps)) + tMin;
 				brChannelID = hit.raw->channelID;
 				brToT = (hit.timeEnd - hit.time) * Tps;
-                                brT1Coarse = hit.raw->t1coarse;
+                                brT1Coarse = long(hit.time) & 0x3FF;
                                 brT1Fine = hit.raw->t1fine;
-                                brT2Coarse = hit.raw->t2coarse;
+                                brT2Coarse = long(hit.timeEnd) & 0x3FF;
                                 brT2Fine = hit.raw->t2fine;
-                                brQCoarse = hit.raw->qcoarse;
+                                brQCoarse = long(hit.timeEnd) & 0x3FF;
                                 brQFine = hit.raw->qfine;
 				brEnergy = hit.energy * Eunit;
                                 brQT1 = hit.qT1;
