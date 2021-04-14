@@ -31,13 +31,13 @@ def main():
 		gc = ac.globalConfig
 		cc = ac.channelConfig[0]
 		
-		print("--- GLOBAL CONFIG ---")
+		print("// GLOBAL CONFIG ---")
 		gc.printAllValues()
-		print(gc)
+		print("global_config = %s;" % gc)
 
-		print ("--- CHANNEL CONFIG ---")
+		print ("// CHANNEL CONFIG ---")
 		cc.printAllValues()
-		print(cc)
+		print("channel_config = %s;" % cc)
 	
 
 	

@@ -49,6 +49,14 @@ class AbstractConfig(bitarray):
 
 	def __deepcopy__(self, memo):
 		return AsicGlobalConfig(initial=self)
+
+	def __str__(self):
+		s = str(bitarray(self))
+
+		s = s[10:]
+		s = s[:-2]
+		s = "%d'b%s" % (len(s), s)
+		return s
 		
 
 	## Set the value of a given parameter as an integer
