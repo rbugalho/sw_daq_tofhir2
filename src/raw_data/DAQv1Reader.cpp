@@ -170,9 +170,9 @@ void DAQv1Reader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
  		if (r != 5) continue;
  		
 		uint64_t rx_timetag = hex_to_u128(tt_hex) % timetag_period;
-		unsigned __int128 evt = hex_to_u128(evt_hex);
+		unsigned __int128 evt = hex_to_u128(evt_hex) >> 32;
 		
-		unsigned evt_type = (evt >> 86) & 0x3;
+		unsigned evt_type = (evt >> 87) & 0x1;
 		if(decoder_log != NULL) fprintf(decoder_log, "%3d %3d %3d '%12s' '%32s'", link, elink, event_number, tt_hex, evt_hex);
 		
 		if(evt_type != 0) {
@@ -262,7 +262,7 @@ void DAQv1Reader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		if(decoder_log != NULL) {
 			fprintf(decoder_log, " GOOD ");
 			fprintf(decoder_log, ": %14lld %4lld%c %14lld %5hu %20lld %15.12g", rx_timetag, rx_timetag_wraps, wraparound ? 'W' : ' ', rx_timetag2, t1coarse, absoluteT1, absoluteT1 / getFrequency() );
-			fprintf(decoder_log, ": %2hu %2hu %1hu : %6hu %4hu %4hu; %4hu %4hu %4hu", e.channelID / 16, e.channelID % 16, e.tacID, t1coarse % 1024, t2coarse, qcoarse, e.t1fine, e.t2fine, e.qfine);
+			fprintf(decoder_log, ": %2hu %2hu %1hu : %6hu %4hu %4hu; %4hu %4hu %4hu", e.channelID / 64, e.channelID % 64, e.tacID, t1coarse % 1024, t2coarse, qcoarse, e.t1fine, e.t2fine, e.qfine);
 			fprintf(decoder_log, "\n");
 		}
 		e.valid = true;
