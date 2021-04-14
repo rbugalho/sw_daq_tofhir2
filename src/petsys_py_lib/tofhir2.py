@@ -98,7 +98,11 @@ class AbstractConfig(bitarray):
 			bitList = self.fields[key]
 			l = bitList[0]
 			r = bitList[-1]
-			print "%30s : %3d : %20s : %d..%d" % (key, self.getValue(key), self.getBits(key), l, r)
+			#print "%30s : %3d : %20s : %d..%d" % (key, self.getValue(key), self.getBits(key), l, r)
+			c_decimal = "%d'd%d" % (len(bitList), self.getValue(key))
+			c_binary = format(self.getValue(key), "0%db" % len(bitList))
+			c_binary = "%d'b%s" % (len(bitList), c_binary)
+			print "// [%03d:%03d] %-30s (default %6s | %10s )" % (l, r, key, c_decimal, c_binary)
 
 	## Returns all the keys (variables) in this class
 	def getKeys(self):
@@ -165,7 +169,7 @@ class AsicGlobalConfig(AbstractConfig):
 			("Pulse_Amplitude", 74, 70, 0),
 			("Comparator_enable", 75, 75, 0),
 			("Iref_probe_enable", 76, 76, 0),
-			("Iref_cal_DAC", 84, 77, 0),
+			("Iref_cal_DAC", 84, 77, 177),
 			("Valdo_A_Gain", 85, 85, 0),
 			("Valdo_A_DAC", 93, 86, 0),
 			("Valdo_B_Gain", 94, 94, 0),
