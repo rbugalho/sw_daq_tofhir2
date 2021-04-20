@@ -234,20 +234,20 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		assert(r == N*sizeof(uint64_t));
 		currentPosition += r;
 		
+		long long frameID = dataFrame->getFrameID();
+		bool frameLost = dataFrame->getFrameLost();
 		
 		if(outBuffer == NULL) {
 			currentBufferFirstFrame = dataFrame->getFrameID();
 			outBuffer = new EventBuffer<RawHit>(outBlockSize, currentBufferFirstFrame * 1024);
 			
 		}
-		else if(outBuffer->getSize() + N > outBlockSize) {
+		else if((outBuffer->getSize() + N > outBlockSize) || ((frameID - currentBufferFirstFrame) > (1LL << 32))) {
 			sink->pushEvents(outBuffer);
 			currentBufferFirstFrame = dataFrame->getFrameID();
 			outBuffer = new EventBuffer<RawHit>(outBlockSize, currentBufferFirstFrame * 1024);
 		}
 		
-		long long frameID = dataFrame->getFrameID();
-		bool frameLost = dataFrame->getFrameLost();
 		
 		// Account skipped frames with all events lost
 		if (frameID != lastFrameID + 1) {
