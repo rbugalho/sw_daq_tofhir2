@@ -50,7 +50,7 @@ private:
         
 	unsigned short	brN;
         int             brChannelIdx[128];
-        std::vector<double>        	brTime;
+        std::vector<long long>        	brTime;
 	std::vector<unsigned int>	brChannelID;
 	std::vector<float>		brToT;
 	std::vector<unsigned short>	brT1Coarse;
@@ -59,9 +59,9 @@ private:
 	std::vector<unsigned short>	brT2Fine;
 	std::vector<unsigned short>	brQCoarse;
 	std::vector<unsigned short>	brQFine;
-	std::vector<unsigned short>	brEnergy;
-	std::vector<unsigned short>	brQT1;
-	std::vector<unsigned short>	brQT2;
+	std::vector<float>	        brEnergy;
+	std::vector<float>	        brQT1;
+	std::vector<float>	        brQT2;
 	std::vector<unsigned short>	brTacID;
         
         std::map<unsigned int,unsigned int> channelCount;
