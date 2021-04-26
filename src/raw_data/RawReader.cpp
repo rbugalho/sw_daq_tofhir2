@@ -234,20 +234,20 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 		assert(r == N*sizeof(uint64_t));
 		currentPosition += r;
 		
+		long long frameID = dataFrame->getFrameID();
+		bool frameLost = dataFrame->getFrameLost();
 		
 		if(outBuffer == NULL) {
 			currentBufferFirstFrame = dataFrame->getFrameID();
 			outBuffer = new EventBuffer<RawHit>(outBlockSize, currentBufferFirstFrame * 1024);
 			
 		}
-		else if(outBuffer->getSize() + N > outBlockSize) {
+		else if((outBuffer->getSize() + N > outBlockSize) || ((frameID - currentBufferFirstFrame) > (1LL << 32))) {
 			sink->pushEvents(outBuffer);
 			currentBufferFirstFrame = dataFrame->getFrameID();
 			outBuffer = new EventBuffer<RawHit>(outBlockSize, currentBufferFirstFrame * 1024);
 		}
 		
-		long long frameID = dataFrame->getFrameID();
-		bool frameLost = dataFrame->getFrameLost();
 		
 		// Account skipped frames with all events lost
 		if (frameID != lastFrameID + 1) {
@@ -283,10 +283,10 @@ void RawReader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 			e.qfine		= eventWord.getQFine();
 			e.prevEventFlags= eventWord.getPrevEventFlags();
 
-			unsigned long long t1 = (frameID << 10) | eventWord.getT1Coarse();
-			unsigned long long t2 = (t1 & 0xFFFFFFFFFFFFFC00) | eventWord.getT2Coarse();
-			unsigned long long tq = (t1 & 0xFFFFFFFFFFFFFC00) | eventWord.getQCoarse();
-			unsigned long long tp = (t1 & 0xFFFFFFFFFFFFF000) | (eventWord.getPrevEventTime() << 2);
+			long long t1 = (frameID << 10) | eventWord.getT1Coarse();
+			long long t2 = (t1 & 0x7FFFFFFFFFFFFC00LL) | eventWord.getT2Coarse();
+			long long tq = (t1 & 0x7FFFFFFFFFFFFC00LL) | eventWord.getQCoarse();
+			long long tp = (t1 & 0x7FFFFFFFFFFFF000LL) | (eventWord.getPrevEventTime() << 2);
 
 			if(t2 < t1) t2 += 1024;
 			if(tq < t1) tq += 1024;

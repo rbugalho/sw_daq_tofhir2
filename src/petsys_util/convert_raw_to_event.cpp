@@ -249,11 +249,11 @@ public:
                                           brTime.emplace_back( ((long long)(h.time * Tps)) + tMin );
                                           brChannelID.emplace_back( chID );
                                           brToT.emplace_back( (h.timeEnd - h.time) * Tps );
-					  brT1Coarse.emplace_back( long(h.time) & 0x3FF );
+					  brT1Coarse.emplace_back( h.raw->time & 0x1FFF );
 					  brT1Fine.emplace_back( h.raw->t1fine );
-					  brT2Coarse.emplace_back( long(h.timeEnd) & 0x3FF );
+					  brT2Coarse.emplace_back( h.raw->timeEnd & 0x3FF );
 					  brT2Fine.emplace_back( h.raw->t2fine );
-                                          brQCoarse.emplace_back( long(h.timeEnd) & 0x3FF );
+                                          brQCoarse.emplace_back( h.raw->timeEndQ & 0x3FF );
                                           brQFine.emplace_back( h.raw->qfine );
                                           if( !pedestals ) brEnergy.emplace_back( h.energy * Eunit );
                                           else brEnergy.emplace_back( h.raw->qfine - (pedValues[chID])[h.raw->tacID] );

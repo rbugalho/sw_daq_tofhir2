@@ -185,11 +185,11 @@ public:
 				brTime = ((long long)(hit.time * Tps)) + tMin;
 				brChannelID = hit.raw->channelID;
 				brToT = (hit.timeEnd - hit.time) * Tps;
-                                brT1Coarse = long(hit.time) & 0x3FF;
+                                brT1Coarse = hit.raw->time & 0x1FFF;
                                 brT1Fine = hit.raw->t1fine;
-                                brT2Coarse = long(hit.timeEnd) & 0x3FF;
+                                brT2Coarse = hit.raw->timeEnd & 0x3FF;
                                 brT2Fine = hit.raw->t2fine;
-                                brQCoarse = long(hit.timeEnd) & 0x3FF;
+                                brQCoarse = hit.raw->timeEndQ & 0x3FF;
                                 brQFine = hit.raw->qfine;
 				brEnergy = hit.energy * Eunit;
                                 brQT1 = hit.qT1;

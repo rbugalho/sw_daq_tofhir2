@@ -10,12 +10,40 @@ import time
 
 def main():
 	parser = argparse.ArgumentParser(description="Initialize system and print status.")
+	parser.add_argument("--config", type=str, default=None, help="Configuration file")
+	parser.add_argument("--print-config", dest="print_config", action="store_true", help="Print configuration")
+
 	
 	args = parser.parse_args()
 
 	connection = daqd.Connection()
 	connection.initializeSystem()
 
+	if args.config is not None:
+		systemConfig = config.ConfigFromFile(args.config, loadMask=0)
+		systemConfig.loadToHardware(connection, bias_enable=config.APPLY_BIAS_OFF, qdc_mode="tot")
+
+
+	if args.print_config:
+		asicsConfig = connection.getAsicsConfig()
+		ac = asicsConfig.values()[0]
+
+		gc = ac.globalConfig
+		cc = ac.channelConfig[0]
+		
+		print("// GLOBAL CONFIG ---")
+		gc.printAllValues()
+		print("global_config = %s;" % gc)
+
+		print ("// CHANNEL CONFIG ---")
+		cc.printAllValues()
+		print("channel_config = %s;" % cc)
+	
+
+	
+
+
 
 if __name__ == "__main__":
 	main()
+

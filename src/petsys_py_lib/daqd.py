@@ -165,6 +165,23 @@ class Connection:
 	def setTestPulsePLL(self, length, interval, finePhase, invert=False):
 		self.set_test_pulse_febds(length, interval, finePhase, invert)
 
+	def setTestPulseBTL(self, tp_finephase, tp_fraction, tp_invert=False):
+
+                tp_finephase = int(round(tp_finephase * 6*56))   # WARNING: This should be firmware dependent..
+		tp_fraction = int(0xFFFF * tp_fraction)
+
+                value = 0x1 << 62
+                value |= (tp_fraction & 0xFFFF)
+                #value |= (tgr_fraction & 0xFFFF) << 16
+                value |= (tp_finephase & 0xFFFFFF) << 31
+                if tp_invert: value |= 1 << 61
+
+		for portID, slaveID in self.getActiveFEBDs():
+			self.write_config_register(portID, slaveID, 64, 0x20B, value)
+		return None
+
+
+
         ## Sets the properties of the internal FPGA pulse generator
         # @param length Sets the length of the test pulse, from 1 to 1023 clock cycles. 0 disables the test pulse.
         # @param interval Sets the interval between test pulses in clock cycles.

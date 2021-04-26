@@ -9,9 +9,9 @@ namespace PETSYS {
 
 	struct RawHit {
 		bool valid;
-		long time;
-		long timeEnd;
-		long timeEndQ;
+		long long time;
+		long long timeEnd;
+		long long timeEndQ;
 		unsigned short prevEventFlags;
 		long prevEventTime;
 		unsigned int channelID;
