@@ -37,15 +37,15 @@ private:
 	long long 	brStepBegin;
 	long long 	brStepEnd;
 
-	double   	brTime;
+	long long	brTime;
 	unsigned int	brChannelID;
 	float		brToT;
-        unsigned short  brT1Coarse;
-        unsigned short  brT1Fine;
-        unsigned short  brT2Coarse;
-        unsigned short  brT2Fine;
-        unsigned short  brQCoarse;
-        unsigned short  brQFine;
+        float           brT1Coarse;
+        float           brT1Fine;
+        float           brT2Coarse;
+        float           brT2Fine;
+        float           brQCoarse;
+        float           brQFine;
 	float		brEnergy;
 	float		brQT1;
 	float		brQT2;
