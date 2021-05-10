@@ -30,6 +30,7 @@ parser.add_argument("--vth1", type=str, dest="vth1", required=True, help="comma 
 parser.add_argument("--vth2", type=str, dest="vth2", required=True, help="comma separated values for vth2")
 parser.add_argument("--vthe", type=str, dest="vthe", required=True, help="comma separated values for vthe")
 parser.add_argument("--taps", type=str, dest="taps", required=False, help="number of taps [0..6]")
+parser.add_argument("--attGain", type=int, dest="attGain", required=False, help="attenuator gain [0..7]")
 parser.add_argument("--ov", type=str, dest="ov", required=True, help="comma separated values for ov")
 parser.add_argument("--aldo", dest="aldo", action="store_true", help="switch for ALDO usage")
 parser.add_argument("--trigger", type=str, dest="trigger", required=False, help="trigger type (none, ext, int)")
@@ -184,6 +185,8 @@ for vth1 in vth1_list:
                                                 #print("%d %d %d %d : %d,%d,%d") % (portID,slaveID,chipID,channelID,dac_setting_vth1,dac_setting_vth2,dac_setting_vthe)
                                                 
                                                 cc.setValue("cfg_a2_postamp_t_delay",int(taps))
+                                                if args.attGain:
+                                                        cc.setValue("cfg_a2_attenuator_gain",args.attGain)
                                                 
                                 if( args.fixChannels ):
                                         for ac in cfg.values():
