@@ -51,8 +51,8 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 			out.timeEnd = out.time;
 			out.energy = (in.t2fine == 28) ? 1 : -1;
 			out.region = -1;
-			out.x = out.y = out.z = 0.0;
-			out.xi = out.yi = 0;
+			out.bar = -1;
+			out.tb = -1;
 		}
 		else {
 	      		
@@ -139,26 +139,24 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 			}
 			
 			out.region = -1;
-			out.x = out.y = out.z = 0.0;
-			out.xi = out.yi = 0;
+			out.bar = -1;
+			out.tb = -1;
+			
 			if(useXYZ) {
 				out.region = cc.triggerRegion;
-				out.x = cc.x;
-				out.y = cc.y;
-				out.z = cc.z;
-				out.xi = cc.xi;
-				out.yi = cc.yi;
+				out.bar = cc.bar;
+				out.tb = cc.tb;
 				if(cc.triggerRegion == -1) eventFlags |= 0x8;
 			}
 			
 		}
 		
-			lReceived += 1;
-			if((eventFlags & 0x1) != 0) lReceivedInvalid += 1;
-			if((eventFlags & 0x2) != 0) lTDCCalibrationMissing += 1;
-			if((eventFlags & 0x4) != 0) lQDCCalibrationMissing += 1;
-			if((eventFlags & 0x8) != 0) lXYZMissing += 1;
-			if((eventFlags & 0x16) != 0) lEnergyCalibrationMissing += 1;
+		lReceived += 1;
+		if((eventFlags & 0x1) != 0) lReceivedInvalid += 1;
+		if((eventFlags & 0x2) != 0) lTDCCalibrationMissing += 1;
+		if((eventFlags & 0x4) != 0) lQDCCalibrationMissing += 1;
+		if((eventFlags & 0x8) != 0) lXYZMissing += 1;
+		if((eventFlags & 0x16) != 0) lEnergyCalibrationMissing += 1;
 
 		if(eventFlags == 0) {
 			out.valid = true;

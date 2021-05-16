@@ -5,6 +5,7 @@
 #include <SystemConfig.hpp>
 #include <CoarseSorter.hpp>
 #include <ProcessHit.hpp>
+#include <BarGrouper.hpp>
 #include <SimpleGrouper.hpp>
 
 #include <boost/lexical_cast.hpp>
@@ -182,6 +183,7 @@ public:
                 
 		long long tMin = buffer->getTMin() * (long long)Tps;
                 
+		Hit **tmpHitList = new Hit* [GammaPhoton::maxHits * 2];
                 
                 // std::cout << "frequency: " << frequency << "   Tps: " << Tps << "   Tns: " << Tns << "   tMin: " << tMin << " (ps)" << std::endl;
 		int N = buffer->getSize();
@@ -209,12 +211,25 @@ public:
 			channelCount.clear();
 			
 			if(!p.valid) continue;
-			brN  = p.nHits;
-			int limit = (hitLimitToWrite < p.nHits) ? hitLimitToWrite : p.nHits;
+			int nHits = 0;
+			for(int k = 0; k < p.nHits; k++) {
+				if(p.hits[k]->top != NULL) {
+					tmpHitList[nHits] = p.hits[k]->top;
+					nHits += 1;
+				}
+				if(p.hits[k]->bottom != NULL) {
+					tmpHitList[nHits] = p.hits[k]->bottom;
+					nHits += 1;
+				}
+			}
+			
+			
+			brN  = nHits;
+			int limit = (hitLimitToWrite < nHits) ? hitLimitToWrite : nHits;
 			if( coincidence && limit < 2 ) continue;
                         bool hasRefChannel = false;
 			for(int m = 0; m < limit; m++) {
-				Hit &h = *p.hits[m];
+				Hit &h = *tmpHitList[m];
 				float Eunit = 1.0;
 				unsigned int chID = h.raw->channelID;
 				
@@ -251,7 +266,7 @@ public:
 				}
 				else if(fileType == FILE_BINARY) {
 					Event eo = { 
-						(uint8_t)p.nHits, (uint8_t)m,
+						(uint8_t)nHits, (uint8_t)m,
 						((long long)(h.time * Tps)) + tMin,
 						h.energy * Eunit,
 						(int)h.raw->channelID
@@ -260,7 +275,7 @@ public:
 				}
 				else {
 					fprintf(dataFile, "%d\t%d\t%lld\t%f\t%d\n",
-						p.nHits, m,
+						nHits, m,
 						((long long)(h.time * Tps)) + tMin,
 						h.energy * Eunit,
 						h.raw->channelID
@@ -271,6 +286,8 @@ public:
 			if( !coincidence || (coincidence && limit > 1 && ( hasRefChannel || refChannel == -1) ) )
 			  hData->Fill();
 		}
+		
+		delete [] tmpHitList;
 		
 	};
 	
@@ -420,10 +437,11 @@ int main(int argc, char *argv[])
 		reader->processStep(stepIndex, true,
 				new CoarseSorter(
 				new ProcessHit(config, reader,
+				new BarGrouper(config,
 				new SimpleGrouper(config,
                                 new WriteHelper(dataFileWriter, step1, step2, coincidence, refChannel, pedestals,
 				new NullSink<GammaPhoton>()
-				)))));
+				))))));
 		
 		dataFileWriter->closeStep(step1, step2);
 	}

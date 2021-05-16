@@ -96,11 +96,6 @@ public:
 			hData->Branch("qT1", &brQT1, bs);
 			hData->Branch("qT2", &brQT2, bs);
 			hData->Branch("tacID", &brTacID, bs);
-			hData->Branch("xi", &brXi, bs);
-			hData->Branch("yi", &brYi, bs);
-			hData->Branch("x", &brX, bs);
-			hData->Branch("y", &brY, bs);
-			hData->Branch("z", &brZ, bs);
 			hData->Branch("tqT", &brTQT, bs);
 			hData->Branch("tqE", &brTQE, bs);
 			hData->Branch("prevEventTime", &brPrevEventTime, bs);
@@ -197,11 +192,6 @@ public:
 				brTacID = hit.raw->tacID;
 				brTQT = hit.raw->time - hit.time;
 				brTQE = (hit.raw->timeEnd - hit.timeEnd);
-				brX = hit.x;
-				brY = hit.y;
-				brZ = hit.z;
-				brXi = hit.xi;
-				brYi = hit.yi;
 				brPrevEventTime = ((long long)((hit.raw->time - hit.raw->prevEventTime) * Tps));
 				brPrevEventFlags = hit.raw->prevEventFlags;
 				

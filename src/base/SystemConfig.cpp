@@ -101,6 +101,7 @@ SystemConfig *SystemConfig::fromFile(const char *configFileName, uint64_t mask)
 	
 	
 	// Load trigger configuration
+	 config->sw_trigger_bar_time_window = iniparser_getdouble(configFile, "sw_trigger:bar_time_window", 20.0);
 	 config->sw_trigger_group_max_hits = iniparser_getint(configFile, "sw_trigger:group_max_hits", 64);
 	 config->sw_trigger_group_min_energy = iniparser_getdouble(configFile, "sw_trigger:group_min_energy", -1E6);
 	 config->sw_trigger_group_max_energy = iniparser_getdouble(configFile, "sw_trigger:group_max_energy", +1E6);
@@ -147,12 +148,9 @@ SystemConfig::SystemConfig()
 		nullChannelConfig.tac_E[n] = { 0, 0, 0, 0};
 		nullChannelConfig.qac_Q[n] = { 0, 0, 0, 0, 0 };
 		nullChannelConfig.eCal[n] = { 0, 0, 0, 0};
-		nullChannelConfig.x = 0.0;
-		nullChannelConfig.y = 0.0;
-		nullChannelConfig.z = 0.0;
-		nullChannelConfig.xi = 0;
-		nullChannelConfig.yi = 0;
 		nullChannelConfig.triggerRegion = -1;
+		nullChannelConfig.bar = -1;
+		nullChannelConfig.tb = -1;
 		
 		nullChannelConfig.t0 = 0.0;
 	}
@@ -337,23 +335,19 @@ void SystemConfig::loadChannelMap(SystemConfig *config, const char *fn)
 		
 		unsigned portID, slaveID, chipID, channelID;
 		int region, xi, yi;
-		float x, y, z;
+		int bar, tb;
 		
-		if(sscanf(line, "%u\t%u\t%u\t%u\t%d\t%d\t%d\t%f\t%f\t%f\n",
+		if(sscanf(line, "%u\t%u\t%u\t%u\t%d\t%d\t%d\n",
 			&portID, &slaveID, &chipID, &channelID,
-			&region, &xi, &yi,
-			&x, &y, &z) != 10) continue;
+			&region, &bar, &tb) != 7) continue;
 		
 		unsigned long gChannelID = MAKE_GID(portID, slaveID, chipID, channelID);
 		
 		config->touchChannelConfig(gChannelID);
 		ChannelConfig &channelConfig = config->getChannelConfig(gChannelID);
 		channelConfig.triggerRegion = region;
-		channelConfig.xi = xi;
-		channelConfig.yi = yi;
-		channelConfig.x = x;
-		channelConfig.y = y;
-		channelConfig.z = z;
+		channelConfig.bar = bar;
+		channelConfig.tb = tb;
 	}
 	fclose(f);
 }

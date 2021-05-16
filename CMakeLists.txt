@@ -36,6 +36,7 @@ set_target_properties(shm_raw_py PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_B
 
 configure_file("src/petsys_py_lib/__init__.py" "petsys/__init__.py" COPYONLY)
 configure_file("src/petsys_py_lib/tofhir2.py" "petsys/tofhir2.py" COPYONLY)
+configure_file("src/petsys_py_lib/tofhir2x.py" "petsys/tofhir2x.py" COPYONLY)
 configure_file("src/petsys_py_lib/daqd.py" "petsys/daqd.py" COPYONLY)
 configure_file("src/petsys_py_lib/bitarray_utils.py" "petsys/bitarray_utils.py" COPYONLY)
 configure_file("src/petsys_py_lib/config.py" "petsys/config.py" COPYONLY)
@@ -79,6 +80,7 @@ add_library ( common STATIC
 	"src/base/Instrumentation.cpp"
 	"src/base/CoarseSorter.cpp"
 	"src/base/ProcessHit.cpp"
+	"src/base/BarGrouper.cpp"
 	"src/base/SimpleGrouper.cpp"
 	"src/base/CoincidenceGrouper.cpp"
 )
@@ -94,14 +96,11 @@ target_link_libraries("convert_raw_to_raw" common)
 add_executable("convert_raw_to_group" "src/petsys_util/convert_raw_to_group.cpp" )
 target_link_libraries("convert_raw_to_group" common)
 
-add_executable("convert_raw_to_trigger" "src/petsys_util/convert_raw_to_trigger.cpp" )
-target_link_libraries("convert_raw_to_trigger" common)
-
 add_executable("convert_raw_to_event" "src/petsys_util/convert_raw_to_event.cpp" )
 target_link_libraries("convert_raw_to_event" common)
 
-add_executable("convert_raw_to_coincidence" "src/petsys_util/convert_raw_to_coincidence.cpp" )
-target_link_libraries("convert_raw_to_coincidence" common)
+# add_executable("convert_raw_to_coincidence" "src/petsys_util/convert_raw_to_coincidence.cpp" )
+# target_link_libraries("convert_raw_to_coincidence" common)
 
 add_executable("convert_raw_to_singles" "src/petsys_util/convert_raw_to_singles.cpp" )
 target_link_libraries("convert_raw_to_singles" common)

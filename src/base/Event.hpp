@@ -36,16 +36,29 @@ namespace PETSYS {
 		float qT1;
 		float qT2;
 		
+		short bar;
+		short tb;
 		short region;
-		short xi;
-		short yi;
-		float x;
-		float y;
-		float z;
 		
 		Hit() {
 			valid = false;
 			raw = NULL;
+		};
+	};
+	
+	struct BarHit {
+		bool valid;
+		double time;
+	
+		short bar;
+		short region;
+		Hit *top;
+		Hit *bottom;
+		
+		BarHit() {
+			valid = false;
+			top = NULL;
+			bottom = NULL;
 		};
 	};
 
@@ -53,11 +66,9 @@ namespace PETSYS {
 		static const int maxHits = 256;
 		bool valid;
 		double time;
-		float energy;
 		short region;
-		float x, y, z;
 		int nHits;
-		Hit *hits[maxHits];
+		BarHit *hits[maxHits];
 
 		GammaPhoton() {
 			valid = false;

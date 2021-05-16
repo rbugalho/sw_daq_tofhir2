@@ -42,9 +42,8 @@ namespace PETSYS {
 			float p3;
 		};
 		struct ChannelConfig {
-			float x, y, z;
-			int xi, yi;
 			int triggerRegion;
+			short bar, tb;
 			float t0;
 			TacConfig tac_T[8];
 			TacConfig tac_E[8];
@@ -54,6 +53,7 @@ namespace PETSYS {
 	       
 
 		// Software trigger configuration
+		float sw_trigger_bar_time_window;
 		int sw_trigger_group_max_hits;
 		float sw_trigger_group_min_energy;
 		float sw_trigger_group_max_energy;

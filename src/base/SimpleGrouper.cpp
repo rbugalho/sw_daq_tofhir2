@@ -6,7 +6,7 @@ using namespace PETSYS;
 using namespace std;
 
 SimpleGrouper::SimpleGrouper(SystemConfig *systemConfig, EventSink<GammaPhoton> *sink) :
-	systemConfig(systemConfig), OverlappedEventHandler<Hit, GammaPhoton>(sink, false)
+	systemConfig(systemConfig), OverlappedEventHandler<BarHit, GammaPhoton>(sink, false)
 {
 	for(int i = 0; i < GammaPhoton::maxHits; i++)
 		nPhotonsHits[i] = 0;
@@ -43,15 +43,15 @@ void SimpleGrouper::report()
 	}
 	fprintf(stderr, "  %10u (%4.1f%%) with more than %d hits\n", nPhotonsHitsOverflow, 100.0*nPhotonsHitsOverflow/nPhotonsFound, maxHits);
 	fprintf(stderr, " photons rejected\n");
-	fprintf(stderr, "  %10u (%4.1f%%) failed minimum energy\n", nPhotonsLowEnergy, 100.0*nPhotonsLowEnergy/nPhotonsFound);
-	fprintf(stderr, "  %10u (%4.1f%%) failed maximim energy\n", nPhotonsHighEnergy, 100.0*nPhotonsHighEnergy/nPhotonsFound);
+// 	fprintf(stderr, "  %10u (%4.1f%%) failed minimum energy\n", nPhotonsLowEnergy, 100.0*nPhotonsLowEnergy/nPhotonsFound);
+// 	fprintf(stderr, "  %10u (%4.1f%%) failed maximim energy\n", nPhotonsHighEnergy, 100.0*nPhotonsHighEnergy/nPhotonsFound);
 	fprintf(stderr, " photons passed\n");
 	fprintf(stderr, "  %10u (%4.1f%%) passed\n", nPhotonsPassed, 100.0*nPhotonsPassed/nPhotonsFound);
 			
-	OverlappedEventHandler<Hit, GammaPhoton>::report();
+	OverlappedEventHandler<BarHit, GammaPhoton>::report();
 }
 
-EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffer)
+EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<BarHit> *inBuffer)
 {
 	
 	double timeWindow1 = systemConfig->sw_trigger_group_time_window;
@@ -78,11 +78,11 @@ EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffe
 	unsigned N =  inBuffer->getSize();
 	EventBuffer<GammaPhoton> * outBuffer = new EventBuffer<GammaPhoton>(N, inBuffer);
 	vector<bool> taken(N, false);
-	Hit * hits[maxHits];
+	BarHit * hits[maxHits];
 	
 	for(unsigned i = 0; i < N; i++) {
 		// Do accounting first
-		Hit &hit = inBuffer->get(i);
+		BarHit &hit = inBuffer->get(i);
 		lHitsReceived += 1;
 
 		if(!hit.valid) continue;
@@ -96,7 +96,7 @@ EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffe
 		int nHits = 1;
 				
 		for(int j = i+1; j < N; j++) {
-			Hit &hit2 = inBuffer->get(j);
+			BarHit &hit2 = inBuffer->get(j);
 			if(!hit2.valid) continue;
 
 			if(taken[j]) continue;
@@ -106,12 +106,6 @@ EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffe
 			
 			// if(!systemConfig->isMultiHitAllowed(hit2.region, hit.region)) continue;
 			if(fabs(hit.time - hit2.time) > timeWindow1) continue;
-
-			float u = hit.x - hit2.x;
-			float v = hit.y - hit2.y;
-			float w = hit.z - hit2.z;
-			float d2 = u*u + v*v + w*w;
-			if(d2 > radius2) continue;
 			
 			taken[j] = true;
 			if(nHits >= maxHits) {
@@ -131,14 +125,14 @@ EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffe
 			nHits = maxHits;
 		}
 		
-		// Buble sorting to put highest energy event first
+		// Buble sorting to put first event first
 		bool sorted = false;
 		while(!sorted) {
 			sorted = true;
 			for(int k = 1; k < nHits; k++) {
-				if(hits[k-1]->energy < hits[k]->energy) {
+				if(hits[k-1]->time > hits[k]->time) {
 					sorted = false;
-					Hit *tmp = hits[k-1];
+					BarHit *tmp = hits[k-1];
 					hits[k-1] = hits[k];
 					hits[k] = tmp;
 				}
@@ -155,14 +149,6 @@ EventBuffer<GammaPhoton> * SimpleGrouper::handleEvents(EventBuffer<Hit> *inBuffe
 		photon.nHits = nHits;
 		photon.region = photon.hits[0]->region;
 		photon.time = photon.hits[0]->time;
-		photon.x = photon.hits[0]->x;
-		photon.y = photon.hits[0]->y;
-		photon.z = photon.hits[0]->z;
-		photon.energy = photon.hits[0]->energy;
-
-		if(photon.energy < minEnergy) eventFlags |= 0x2;
-		if(photon.energy > maxEnergy) eventFlags |= 0x4;
-
 		
 		// Count photons
 		lPhotonsFound += 1;

@@ -5,6 +5,7 @@
 #include <SystemConfig.hpp>
 #include <CoarseSorter.hpp>
 #include <ProcessHit.hpp>
+#include <BarGrouper.hpp>
 #include <SimpleGrouper.hpp>
 
 #include <boost/lexical_cast.hpp>
@@ -89,11 +90,6 @@ public:
 			hData->Branch("channelID", &brChannelID, bs);
 			hData->Branch("energy", &brEnergy, bs);
 			hData->Branch("tacID", &brTacID, bs);
-			hData->Branch("xi", &brXi, bs);
-			hData->Branch("yi", &brYi, bs);
-			hData->Branch("x", &brX, bs);
-			hData->Branch("y", &brY, bs);
-			hData->Branch("z", &brZ, bs);
 			hData->Branch("prevEventTime", &brPrevEventTime, bs);
 			hData->Branch("prevEventFlags", &brPrevEventFlags, bs);
 			hIndex = new TTree("index", "Step Index", 2);
@@ -158,6 +154,7 @@ public:
 		float Tns = Tps / 1000;
 	
 		long long tMin = buffer->getTMin() * (long long)Tps;
+		Hit **tmpHitList = new Hit* [GammaPhoton::maxHits * 2];
 		
 		int N = buffer->getSize();
 		for (int i = 0; i < N; i++) {
@@ -168,16 +165,29 @@ public:
 			GammaPhoton &p = buffer->get(i);
 			
 			if(!p.valid) continue;
-			Hit &h0 = *p.hits[0];
-			int limit = (hitLimitToWrite < p.nHits) ? hitLimitToWrite : p.nHits;
+			
+			int nHits = 0;
+			for(int k = 0; k < p.nHits; k++) {
+				if(p.hits[k]->top != NULL) {
+					tmpHitList[nHits] = p.hits[k]->top;
+					nHits += 1;
+				}
+				if(p.hits[k]->bottom != NULL) {
+					tmpHitList[nHits] = p.hits[k]->bottom;
+					nHits += 1;
+				}
+			}
+			
+			Hit &h0 = *tmpHitList[0];
+			int limit = (hitLimitToWrite < nHits) ? hitLimitToWrite : nHits;
 			for(int m = 0; m < limit; m++) {
-				Hit &h = *p.hits[m];
+				Hit &h = *tmpHitList[m];
 				float Eunit = 1.0;
 				if (fileType == FILE_ROOT){
 					brStep1 = step1;
 					brStep2 = step2;
 
-					brN  = p.nHits;
+					brN  = nHits;
 					brJ = m;
 					brTime = ((long long)(h.time * Tps)) + tMin;
 					brTimeDelta = (long long)(h.time - h0.time) * Tps;
@@ -185,11 +195,6 @@ public:
 					brToT = (h.timeEnd - h.time) * Tps;
 					brEnergy = h.energy * Eunit;
 					brTacID = h.raw->tacID;
-					brX = h.x;
-					brY = h.y;
-					brZ = h.z;
-					brXi = h.xi;
-					brYi = h.yi;
 					brPrevEventTime = ((long long)((h.raw->time - h.raw->prevEventTime) * Tps));
 					brPrevEventFlags = h.raw->prevEventFlags;
 					
@@ -197,7 +202,7 @@ public:
 				}
 				else if(fileType == FILE_BINARY) {
 					Event eo = { 
-						(uint8_t)p.nHits, (uint8_t)m,
+						(uint8_t)nHits, (uint8_t)m,
 						((long long)(h.time * Tps)) + tMin,
 						h.energy * Eunit,
 						(int)h.raw->channelID
@@ -206,7 +211,7 @@ public:
 				}
 				else {
 					fprintf(dataFile, "%d\t%d\t%lld\t%f\t%d\n",
-						p.nHits, m,
+						nHits, m,
 						((long long)(h.time * Tps)) + tMin,
 						h.energy * Eunit,
 						h.raw->channelID
@@ -215,6 +220,7 @@ public:
 			}
 		}
 		
+		delete [] tmpHitList;
 	};
 	
 };
@@ -340,10 +346,11 @@ int main(int argc, char *argv[])
 		reader->processStep(stepIndex, true,
 				new CoarseSorter(
 				new ProcessHit(config, reader,
+				new BarGrouper(config,
 				new SimpleGrouper(config,
 				new WriteHelper(dataFileWriter, step1, step2,
 				new NullSink<GammaPhoton>()
-				)))));
+				))))));
 		
 		dataFileWriter->closeStep(step1, step2);
 	}

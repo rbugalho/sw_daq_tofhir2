@@ -7,6 +7,48 @@ import argparse
 import struct
 import sys
 
+# channel : ( bad ID, bar end )
+# bar end:
+# 0 for bottom
+# 1 for top
+# -1 for others (eg, trigger channel)
+
+bar_map = {
+	15	: (0, 0),
+	13	: (1, 0),
+	11	: (2, 0),
+	9	: (3, 0),
+	7	: (4, 0),
+	5	: (5, 0),
+	3	: (6, 0),
+	1	: (7, 0),
+	0	: (8, 0),
+	2	: (9, 0),
+	4	: (10, 0),
+	6	: (11, 0),
+	8	: (12, 0),
+	10	: (13, 0),
+	12	: (14, 0),
+	14	: (15, 0),
+
+	16	: (0, 1),
+	18	: (1, 1),
+	20	: (2, 1),
+	22	: (3, 1),
+	24	: (4, 1),
+	26	: (5, 1),
+	28	: (6, 1),
+	30	: (7, 1),
+	31	: (8, 1),
+	29	: (9, 1),
+	27	: (10, 1),
+	25	: (11, 1),
+	23	: (12, 1),
+	21	: (13, 1),
+	19	: (14, 1),
+	17	: (15, 1)
+	
+	}
 
 def main():
 	parser = argparse.ArgumentParser(description='Make a simple channel and trigger map')
@@ -44,7 +86,8 @@ def main():
 			region_list.append(trigger_region)
 			for asicID in range(4*quadrant, 4*quadrant + 4):
 				for channelID in range(32):
-					channelOutputFile.write("%(portID)s\t%(slaveID)d\t%(asicID)d\t%(channelID)d\t%(trigger_region)d\t0\t0\t0.0\t0.0\t0.0\n" % locals())
+					bar, tb = bar_map[channelID]					
+					channelOutputFile.write("%(portID)s\t%(slaveID)d\t%(asicID)d\t%(channelID)d\t%(trigger_region)d\t%(bar)d\t%(tb)d\n" % locals())
 					
 			triggerOutputFile.write("%(trigger_region)d\t%(trigger_region)d\tM\n" % locals())
 					

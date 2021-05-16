@@ -8,7 +8,7 @@
 
 namespace PETSYS {
 	
-class SimpleGrouper : public OverlappedEventHandler<Hit, GammaPhoton> {
+class SimpleGrouper : public OverlappedEventHandler<BarHit, GammaPhoton> {
 public:
 	SimpleGrouper(SystemConfig *systemConfig, EventSink<GammaPhoton> *sink);
 	~SimpleGrouper();
@@ -16,7 +16,7 @@ public:
 	virtual void report();
 	
 protected:
-	virtual EventBuffer<GammaPhoton> * handleEvents(EventBuffer<Hit> *inBuffer);
+	virtual EventBuffer<GammaPhoton> * handleEvents(EventBuffer<BarHit> *inBuffer);
 		
 private:
 	SystemConfig *systemConfig;
