@@ -234,7 +234,7 @@ class Config:
 		return self.__biasChannelSettingsTable[key]
 
 	def getBiasChannelDefaultSettingsAldo(self, key):
-		return self.__biasChannelSettingsTable[key]
+		return self.__biasChannelSettingsTableAldo[key]
 		
 	def mapBiasChannelVoltageToDAC(self, key, voltage):
 		# Linear interpolation on closest neighbours

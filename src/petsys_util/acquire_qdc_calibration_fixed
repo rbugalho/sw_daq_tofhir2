@@ -51,7 +51,7 @@ for ac in asicsConfig.values():
 #simultaneousChannels = min([simultaneousChannels, 126/16, 1024/80])
 
 #channelStep = int(math.ceil(32.0/simultaneousChannels))
-channelStep = 1
+channelStep = 4
 
 ## Take some data while saturating the range
 #for firstChannel in range(0, channelStep):

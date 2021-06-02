@@ -41,23 +41,27 @@ private:
 	// ROOT Tree fields
 	float		brStep1;
 	float		brStep2;
+        unsigned short  brPrevEventFlags;
+        long long       brPrevEventTime;
+        double          brTimeLast;
+        double          brTimeLastTmp;
 	long long 	brStepBegin;
 	long long 	brStepEnd;
-
+        
 	unsigned short	brN;
         int             brChannelIdx[128];
         std::vector<long long>        	brTime;
 	std::vector<unsigned int>	brChannelID;
 	std::vector<float>		brToT;
-	std::vector<float>		brT1Coarse;
-	std::vector<float>		brT1Fine;
-	std::vector<float>		brT2Coarse;
-	std::vector<float>		brT2Fine;
-	std::vector<float>		brQCoarse;
-	std::vector<float>		brQFine;
-	std::vector<float>		brEnergy;
-	std::vector<float>		brQT1;
-	std::vector<float>		brQT2;
+	std::vector<unsigned short>	brT1Coarse;
+	std::vector<unsigned short>	brT1Fine;
+	std::vector<unsigned short>	brT2Coarse;
+	std::vector<unsigned short>	brT2Fine;
+	std::vector<unsigned short>	brQCoarse;
+	std::vector<unsigned short>	brQFine;
+	std::vector<float>	        brEnergy;
+	std::vector<float>	        brQT1;
+	std::vector<float>	        brQT2;
 	std::vector<unsigned short>	brTacID;
         
         std::map<unsigned int,unsigned int> channelCount;
@@ -95,7 +99,8 @@ public:
                 
                 
 		stepBegin = 0;
-		
+                brTimeLast = -1;
+                
 		if (fileType == FILE_ROOT){
 			hFile = new TFile(fName, "RECREATE");
 			int bs = 512*1024;
@@ -103,6 +108,9 @@ public:
 			hData = new TTree("data", "Event List", 2);
 			hData->Branch("step1", &brStep1, bs);
 			hData->Branch("step2", &brStep2, bs);
+                        hData->Branch("prevEventFlags", &brPrevEventFlags, bs);
+                        hData->Branch("prevEventTime", &brPrevEventTime, bs);
+                        hData->Branch("timeLast", &brTimeLast, bs);
 			hData->Branch("mh_n", &brN, bs);
 			hData->Branch("channelIdx", brChannelIdx, "channelIdx[128]/I");
 			hData->Branch("tot", &brToT);
@@ -170,7 +178,7 @@ public:
 			stepBegin = ftell(dataFile);
 		}
 		else {
-			// Do nothing
+                  // Do nothing
 		}
 	};
 	
@@ -208,6 +216,9 @@ public:
 			for(unsigned int jj = 0; jj < 128; ++jj) brChannelIdx[jj] = -1;
 			channelCount.clear();
 			
+                        brTimeLast = brTimeLastTmp;
+                        brTimeLastTmp = 0; 
+                        
 			if(!p.valid) continue;
 			brN  = p.nHits;
 			int limit = (hitLimitToWrite < p.nHits) ? hitLimitToWrite : p.nHits;
@@ -228,7 +239,13 @@ public:
                                         {
                                           channelCount[chID] += 1;
 					  brChannelIdx[chID] = brTime.size();
-					  
+                                          
+                                          brPrevEventTime = ((long long)((h.raw->time - h.raw->prevEventTime) * Tps));
+                                          brPrevEventFlags = h.raw->prevEventFlags;
+                                          
+                                          if( brTimeLastTmp == 0 || (((long long)(h.time * Tps)) + tMin) < brTimeLastTmp )
+                                            brTimeLastTmp = ((long long)(h.time * Tps)) + tMin;
+                                          
                                           brTime.emplace_back( ((long long)(h.time * Tps)) + tMin );
                                           brChannelID.emplace_back( chID );
                                           brToT.emplace_back( (h.timeEnd - h.time) * Tps );
