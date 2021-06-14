@@ -1,123 +1,116 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from petsys import daqd
-from math import sqrt
-import time
-import argparse
+
 import sys
+from petsys import daqd
+from time import sleep
 
-
-def main(argv):
-	parser = argparse.ArgumentParser(description='Measure temperature from all connected sensors')
-	parser.add_argument("--time", type=float, required=False, default=0, help="Acquisition time (in seconds)")
-	parser.add_argument("--interval", type=float, required=False, default=10, help="Measurement interval (in seconds)")
-	parser.add_argument("-o", type=str, dest="fileName", required=False, default="/dev/null", help="Data filename")
-	args = parser.parse_args()
+def ltc2984_ll(conn,  chipID, command, rd):
+		portID, slaveID, cfgFunctionID = 0, 0, 0x2
 	
-	connection = daqd.Connection()
-	femTypeList = {}
-	for portID, slaveID in connection.getActiveFEBDs():
-		femTypeList[(portID, slaveID)] = connection.read_config_register(portID, slaveID, 16, 0x0002)
+		w = 8 * len(command)
+		padding = [0x00 for n in range(2) ]
+		p = 8 * len(padding)
+
+
+		# Pad the cycle with zeros
+		return conn.spi_master_execute(portID, slaveID, cfgFunctionID, chipID, 
+			p+w+rd+p, 		# cycle
+			p,p+rd+w, 		# sclk en
+			p-1,p+w+rd+1,	# cs
+			0, p+w+p, 	# mosi
+			p+w,p+w+rd, 		# miso
+			padding + command + padding)
+		
+def ltc2984_write(conn, chipID, addr, n, value):
+	#print "WRITE"
+	cmd = (addr << (n*8)) | value
+	#print hex(addr), hex(value), hex(cmd)
+	cmd = [ 0x02 ] + [ (cmd >> (8*k)) & 0xFF for k in range(n+1, -1, -1) ]
+	#print [ "%02X" % v for v in cmd ]
+	#print "WRITE", "0x%03X" % addr, "0x%08X" % value, [ "%02X" % v for v in cmd ]
+	ltc2984_ll(conn, chipID, cmd, 0)
+
+def ltc2984_read(conn, chipID, addr, n):
+	#print "READ"
+	cmd = addr
+	#print hex(addr)
+	cmd = [ 0x03] + [ (cmd >> (8*k)) & 0xFF for k in range(1, -1, -1) ]
+	#print [ "%02X" % v for v in cmd ]
+	r = ltc2984_ll(conn, chipID, cmd, 8*n)
+	#print [ "%02X" % v for v in r ]
+	#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in cmd ], "\t\t\t  ", [ "%02X" % v for v in r ]
+	return r
+
+
+def ltc2984_cfg_channels(conn):
 	
-         
-	dataFile = open(args.fileName, "w")                        
-
-	tEnd = time.time() + args.time
-
-        isFirst = True
-
-	while True:
-		tNextRead = time.time() + args.interval
-                measures = {}
-                isModulePresent = {}
-		# Get current system time tag _in clock cycles_
-		timestamp = connection.getCurrentTimeTag()
-             
-		for (portID, slaveID), femType in femTypeList.items():
-			#print "FEB/D (%2d, %2d)" % (portID, slaveID)
-                        
-			if femType == 0x0000:
-				# TOFPET 2 TB with TMP104 sensors
-				nSensors = connection.fe_temp_enumerate_tmp104(portID, slaveID)
-				tmp104Readings = connection.fe_temp_read_tmp104(portID, slaveID, nSensors)
-				for i, value in enumerate(tmp104Readings):
-					print "FEB/D (%2d, %2d)\t\tSensor %2d: %2d ºC" % (portID, slaveID, i, value) 
-					dataFile.write("%(timestamp)d\t%(portID)d\t%(slaveID)d\t%(i)d\t0\t%(value)d\n" % locals())
-                                
-                                        
-			elif femType == 0x0001:
-				# FEM-128 with MAX111xx ADC
-				nSensors = 0
-				for i in range(8):
-					if not connection.fe_temp_check_max1111xx(portID, slaveID, i):
-						#print "Module %d: not present" % i
-                                                isModulePresent[(portID,slaveID,i)]=False
-					else:
-						nSensors += 1
-                                                isModulePresent[(portID,slaveID,i)]=True
-						#print "Module %d" % i
-						for j in range(4):
-							u = connection.fe_temp_read_max111xx(portID, slaveID, i, j)
-							v = u*2.5/4.096
-							if j in [0, 3]:
-								# LMT86
-								T = 30-(10.888-sqrt(118.548544+0.01388*(1777.3-v)))/0.00694
-								tmpType = "FEB/A"
-							else:
-								# LMT70
-								T = 205.5894-0.1814103*v-3.325395*10**-6*(v)**2-1.809628*10**-9*(v)**3
-								tmpType = "FEB/S"
-                                                        measures[(portID,slaveID,i,j)]=T
-
-							#print "  Channel %d (%s): %7.2f ºC (%5d ADC or %5.1f mV)" % (j, tmpType, T, u, v)
-							#dataFile.write("%(timestamp)d\t%(portID)d\t%(slaveID)d\t%(i)d\t%(j)d\t%(T)f\n" % locals())
-
-				if nSensors == 0:
-					print "WARNING: No sensors found in FEB/D (%2d, %2d). Check if FEM are connected and FEM power is enabled." % (portID, slaveID)
-
-		print "----------------------------------------------- "+time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())) +" --------------------------------------------------" 
-                print "portID\tslaveID\tmodule ID\tFEB/A(J1) Sensor\tFEB/A(J2) Sensor\tFEB/S(J1) Sensor\tFEB/S(J2) Sensor"
-                
-                if isFirst:
-                       
-                        dataFile.write("# Absolute Sensor ID format : portID_slaveID_moduleID_SensorID\n")
-                        dataFile.write("# Sensor ID is:\n")
-                        dataFile.write("# A1 - Sensor on FEB/A connected to port J1 of the FEB/I\n")
-                        dataFile.write("# A2 - Sensor on FEB/A connected to port J2 of the FEB/I\n")
-                        dataFile.write("# S1 - Sensor on FEB/S connected to port J1 of the FEB/I\n")
-                        dataFile.write("# S2 - Sensor on FEB/S connected to port J2 of the FEB/I\n")
-        
-                       
-                
-                        dataFile.write("#\n#DAQ timestamp\tSystem time")
-                        for (portID, slaveID), femType in femTypeList.items():
-                                for i in range(8):
-                                        if isModulePresent[(portID,slaveID,i)]:
-                                                dataFile.write("\t%d_%d_%d_A1" % (portID,slaveID,i))
-                                                dataFile.write("\t%d_%d_%d_A2" % (portID,slaveID,i))
-                                                dataFile.write("\t%d_%d_%d_S1" % (portID,slaveID,i))
-                                                dataFile.write("\t%d_%d_%d_S2" % (portID,slaveID,i))
-                        dataFile.write("\n")
-
-                dataFile.write("%d\t%d" %(timestamp, time.time()))        
-                for (portID, slaveID), femType in femTypeList.items():
-                        for i in range(8):
-                                if isModulePresent[(portID,slaveID,i)]:
-                                        print "     %d\t\t     %d\t\t      %d\t\t    %7.2f ºC\t\t    %7.2f ºC\t\t    %7.2f ºC\t\t    %7.2f ºC" % (portID, slaveID, i, measures[(portID,slaveID,i,0)],  measures[(portID,slaveID,i,3)],  measures[(portID,slaveID,i,1)], measures[(portID,slaveID,i,2)] )
-                                        dataFile.write("\t%.2f\t%.2f\t%.2f\t%.2f" % (measures[(portID,slaveID,i,0)],  measures[(portID,slaveID,i,3)],  measures[(portID,slaveID,i,1)], measures[(portID,slaveID,i,2)]))
-        
-		print "-------------------------------------------------------------------------------------------------------------------------\n" 
-		dataFile.write("\n")
-                dataFile.flush()
-                                
-                isFirst = False
-
-		if tNextRead > tEnd:
-			break
+	for chip in range(2):
+		for channel in range(3, 19, 2):
+			addr = 0x200 + 0x04 * (channel - 1)
+			channel_cfg = 0x0000
+			channel_cfg |= (0b01111) << 27 #RTD
+			channel_cfg |= 0b10100 << 22 # RSENSE channel
+			channel_cfg |= 0b0001 << 18 # SENSE configuration (table 32)
+			channel_cfg |= 0b0101 << 14 # Excitation current
+			channel_cfg |= 0b00 << 12 # Curve
 			
-		tNow = time.time()
-		if tNextRead > tNow:
-			time.sleep(tNextRead - tNow)
+			ltc2984_write(conn, chip, addr, 4, channel_cfg)
+
+		# RSense Channel itself
+		addr = 0x200 + 0x04 * (20 - 1)
+		channel_cfg = 0x0000
+		channel_cfg |= (0b11101) << 27 #RSENSE
+		channel_cfg |= 5110 << 10 # RSENSE value (integer)
+		channel_cfg |= 0b0  # RSENSE value (fraction with 1/1024 precision)
+			
+		ltc2984_write(conn, chip, addr, 4, channel_cfg)
+
+	#r = ltc2984_read(conn, chip, addr, 4)
+	#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
+
+		
+def ltc_read_channels(conn):
+	result = []
+
+	for chip in range(2):
+		for channel in range(3, 19, 2):
+			#print chip, channel
+			# start conversion
+			addr = 0x0000
+			value = 0b10000000 | channel
+			ltc2984_write(conn, chip, addr, 1, value)
+		
+			sleep(0.3)
+			# check for done
+			#r = ltc2984_read(conn, chip, addr, 1)
+			#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
+			
+			# readout data
+			addr = 0x0010 + 0x04 * (channel - 1)
+			r = ltc2984_read(conn, chip, addr, 4)
+			#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
+			status = r[1]
+			value = (r[2] << 16) + (r[3] << 8) + (r[4])
+			temperature = value / 1024.0
+
+			if status == 0x01:
+				status_msg = "OK"
+			else:
+				status_msg = "ERR"
+			print "CHIP %d CH %02d STATUS %03s (0x%02X) TEMP %10.3f ºC" % (chip, channel, status_msg, status, temperature)
+		
+		
+def main(argv):
+
+	conn = daqd.Connection()
+	ltc2984_cfg_channels(conn)
+	
+	ltc_read_channels(conn)
+	
+	
+
+	return 0
 
 if __name__ == '__main__':
-	sys.exit(main(sys.argv))
+	sys.exit(main(sys.argv))#
