@@ -40,9 +40,9 @@ T = COUNT_MAX * (1 / daqd.getSystemFrequency())
 
 
 thresholdList = [ 
-	(0,  "cfg_a3_vth_t1", "baseline_t" ),
-	(1,  "cfg_a3_vth_t2", "baseline_t" ),
-	(2,  "cfg_a3_vth_e", "baseline_e")
+	(0,  "cfg_a3_ith_t1", "baseline_t" ),
+	(1,  "cfg_a3_ith_t2", "baseline_t" ),
+	(2,  "cfg_a3_ith_e", "baseline_e")
 ]
 
 activeAsics = daqd.getActiveAsics()
@@ -141,9 +141,9 @@ for thresholdIndex, thresholdName, baselineName in thresholdList:
 	for thresholdValue in range(0,64):
 		for ac in asicsConfig.values():
 			for cc in ac.channelConfig:
-				cc.setValue("cfg_a3_vth_t1", 63)
-				cc.setValue("cfg_a3_vth_t2", 63)
-				cc.setValue("cfg_a3_vth_e", 63)
+				cc.setValue("cfg_a3_ith_t1", 63)
+				cc.setValue("cfg_a3_ith_t2", 63)
+				cc.setValue("cfg_a3_ith_e", 63)
 				cc.setValue("c_tgr_B", thresholdIndex)
 				cc.setValue(thresholdName, thresholdValue)
 

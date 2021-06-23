@@ -872,20 +872,20 @@ class Connection:
 		#print "DEBUG RPL ", (" ").join([ "%02X" % v for v in reply ])
 		
 		
-		if not write:
-			# BUG FIX
-			# Reading seems to leave configuration shifted by one
-			# A second read with a read count shifted by 2 seems to place config in it's place
-			dummy_command =  bytearray([ 
-				busID, 
-				expect_reply and 0x1 or 0x0,
-				0x00,
-				0x2F, 0xAF, 0xC1,
-				chipID,
-				(write and 0x80 or 0x00) | regID,
-				l - 3] + [ 0x00 for k in range(32) ]
-			)
-			self.sendCommand(portID, slaveID, 0x01, dummy_command)
+		#if not write:
+			## BUG FIX
+			## Reading seems to leave configuration shifted by one
+			## A second read with a read count shifted by 2 seems to place config in it's place
+			#dummy_command =  bytearray([ 
+				#busID, 
+				#expect_reply and 0x1 or 0x0,
+				#0x00,
+				#0x2F, 0xAF, 0xC1,
+				#chipID,
+				#(write and 0x80 or 0x00) | regID,
+				#l - 3] + [ 0x00 for k in range(32) ]
+			#)
+			#self.sendCommand(portID, slaveID, 0x01, dummy_command)
 			
 		
 		status, reply = reply[0], reply[1:]

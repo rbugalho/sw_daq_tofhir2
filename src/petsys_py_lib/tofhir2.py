@@ -24,7 +24,7 @@ def compile_cfg_map(*args):
 
 			intersection = bits_used.intersection(set(bits))
 			if intersection != set():
-				sys.stderr.write("ERROR in field %s: bits %s already used\n"  % (name, (", ").join([b for b in intersection])))
+				sys.stderr.write("ERROR in field %s: bits %s already used\n"  % (name, (", ").join([str(b) for b in intersection])))
 				sys.exit(1)
 
 			bits_used = bits_used.union(set(bits))
@@ -147,24 +147,26 @@ class AsicGlobalConfig(AbstractConfig):
 			("c_ext_tp_en", 0, 0, 0),
 			("c_fetp_en", 1, 1, 0),
 			("c_veto_en", 2, 2, 0),
-			("c_int_tp_delay", 5, 3, 0)
+			("c_int_tp_delay", 5, 3, 0),
+			("g_cfg_tp2_en", 6, 6, 0),
+			("g_cfg_tp2_inv", 7, 7, 0),
+			("g_cfg_tp2_period", 17, 8, 0),
+			("g_cfg_tp2_length", 27, 18, 0),
+			("g_cfg_tp2_clk", 28, 28, 0)
 		]
-		l_d2 = 6
-
+		l_d2 = 29
 
 		fields_mb = [
-			("Enable_postamp_T_mirrors", 0, 0, 1),
-			("Postamp_T_bias_DAC", 6, 1, 32),
+			("Enable_baseline_T_mirrors", 0, 0, 1),
+			("Baseline_T_DAC", 6, 1, 32),
 			("Enable_preamp_mirrors", 7, 7, 1),
 			("Preamp_bias_DAC", 13, 8, 32),
-			("Enable_postamp_E_mirrors", 14, 14, 1),
-			("Postamp_E_bias_DAC", 20, 15, 32),
-			("Enable_attenuator_mirrors", 21, 21, 1),
-			("Attenuator_bias_DAC", 27, 22, 32),
+			("Enable_discriminator_mirrors", 14, 14, 1),
+			("Discriminator_bias_DAC", 20, 15, 32),
+			("Enable_baseline_E_mirrors", 21, 21, 1),
+			("Baseline_E_DAC", 27, 22, 32),
 			("Enable_TAC1_mirrors", 28, 28, 1),
 			("TAC1_bias_DAC", 34, 29, 32),
-			("Enable_discriminator_mirrors", 35, 35, 1),
-			("Discriminator_bias_DAC", 41, 36, 32),
 			("Enable_TAC2_mirrors", 42, 42, 1),
 			("TAC2_bias_DAC", 48, 43, 32),
 			("Enable_QAC_mirrors", 49, 49, 1),
@@ -182,7 +184,6 @@ class AsicGlobalConfig(AbstractConfig):
 			("Valdo_A_DAC", 93, 86, 0),
 			("Valdo_B_Gain", 94, 94, 0),
 			("Valdo_B_DAC", 102, 95, 0),
-			("Amp_Vbl_DAC", 108, 103, 32),
 			("TAC_QAC_Vbl_DAC", 114, 109, 54),
 			("SE2Diff_CM_DAC", 120, 115, 32)
 		]
@@ -228,9 +229,10 @@ class AsicGlobalConfigTX(AbstractConfig):
 
 		fields_d3 = [
 			("c_tx_mode",	3,	0,	0),
-			("c_tx_clps",	13,	4,	0x3FF)
+			("c_tx_clps",	13,	4,	0x3FF),
+			("c_dual",	14,	14,	0)
 		]
-		l_d3 = 14
+		l_d3 = 15
 
 
 		l, f = compile_cfg_map (l_d3, fields_d3)
@@ -364,35 +366,25 @@ class AsicChannelConfig(AbstractConfig):
 		]
 		l_a4 = 12
 		
-		fields_a3 = [
-			("cfg_a3_vth_t1",	5,	0,	63),
-			("cfg_a3_vth_t2",	11,	6,	63),
-			("cfg_a3_vth_e",	17,	12,	63),
-			("cfg_a3_delay_select",	20,	18,	0),
-			("cfg_a3_vth_t_gain",	23,	21,	0b011)
+		fields_a123 = [
+			("cfg_a3_delay_select", 2, 0, 1 ),
+			("cfg_a3_ith_t1", 8, 3, 31),
+			("cfg_a3_ith_t2", 14, 9, 44),
+			("cfg_a3_ith_e", 20, 15, 10),
+			("cfg_a2_attenuator_dc_cancel_en", 21, 21, 1),
+			("cfg_a2_attenuator_gain", 24, 22, 7),
+			("cfg_a3_range_t1", 26, 25, 1),
+			("cfg_a3_range_t2", 28, 27, 0),
+			("cfg_a3_range_e", 30, 29, 0),
+			("cfg_a2_dcr_delay_t", 38, 31, 0b00001111),
+			("cfg_a2_dcr_delay_e", 45, 39, 0b0001111),
+			("cfg_a2_pulse_trim_t", 50, 46, 15),
+			("cfg_a2_pulse_trim_e", 55, 51, 19),
+			("cfg_a1_fetp_en", 56, 56, 0),
+			("cfg_a1_power_down", 57, 57, 0)
 		]
-		l_a3 = 24
+		l_a123 = 58
 		
-		fields_a2 = [
-			("cfg_a2_attenuator_delay",	2,	0,	6),
-			("cfg_a2_postamp_e_delay",	5,	3,	6),
-			("cfg_a2_postamp_t_delay",	8,	6,	6),
-			("cfg_a2_postamp_t_output_gain",11,	9,	0b010),
-			("cfg_a2_attenuator_dc_cancel_en",12,	12,	1),
-			("cfg_a2_postamp_e_output_gain",15,	13,	0b010),
-			("cfg_a2_postamp_e_shapping",	17,	16,	0),
-			("cfg_a2_postamp_power_down",	18,	18,	0),
-			("cfg_a2_attenuator_gain",	21,	19,	0)
-		]
-		l_a2 = 22
-		
-		fields_a1 = [
-			("cfg_a1_fetp_en",		0,	0,	0),
-			("cfg_a1_gain",			1,	1,	0),
-			("cfg_a1_power_down",		2,	2,	0)
-		]
-		l_a1 = 3
-
 
 		l, f = compile_cfg_map (
 			l_d3, fields_d3, l_d2,
@@ -400,9 +392,7 @@ class AsicChannelConfig(AbstractConfig):
 			fields_d1,
 			l_a5, fields_a5, 
 			l_a4, fields_a4,
-			l_a3, fields_a3,
-			l_a2, fields_a2,
-			l_a1, fields_a1
+			l_a123, fields_a123
 		)
 
 		self.l = l

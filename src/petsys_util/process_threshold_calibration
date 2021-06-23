@@ -101,7 +101,7 @@ def main(argv):
 
 	noiseProfiles = {}
 	for portID, slaveID, chipID, channelID in activeChannels:
-		for thresholdName in ["cfg_a3_vth_t1", "cfg_a3_vth_t2", "cfg_a3_vth_e"]:
+		for thresholdName in ["cfg_a3_ith_t1", "cfg_a3_ith_t2", "cfg_a3_ith_e"]:
 			hName = "hNoise_%02d_%02d_%02d_%02d_%s" % (portID, slaveID, chipID, channelID, thresholdName)
 			hTitle = "Noise (%02d %02d %02d %02d) %s" % (portID, slaveID, chipID, channelID, thresholdName)
 			noiseProfiles[(portID, slaveID, chipID, channelID, thresholdName)] = ROOT.TProfile(hName, hTitle, 64, 0, 64)
@@ -119,7 +119,7 @@ def main(argv):
 
 	darkProfiles = {}
 	for portID, slaveID, chipID, channelID in activeChannels:
-		for thresholdName in ["cfg_a3_vth_t1", "cfg_a3_vth_t2", "cfg_a3_vth_e"]:
+		for thresholdName in ["cfg_a3_ith_t1", "cfg_a3_ith_t2", "cfg_a3_ith_e"]:
 			hName = "hDark_%02d_%02d_%02d_%02d_%s" % (portID, slaveID, chipID, channelID, thresholdName)
 			hTitle = "Dark (%02d %02d %02d %02d) %s" % (portID, slaveID, chipID, channelID, thresholdName)
 			darkProfiles[(portID, slaveID, chipID, channelID, thresholdName)] = ROOT.TProfile(hName, hTitle, 64, 0, 64)
@@ -182,11 +182,11 @@ def main(argv):
 		gbaseline_T[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, baseline_T)
 		gbaseline_E[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, baseline_E)
 		
-		zero_T1, noise_T1 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_t1")])
-		zero_T2, noise_T2 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_t2")])
+		zero_T1, noise_T1 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_ith_t1")])
+		zero_T2, noise_T2 = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_ith_t2")])
 
-		# WARNING: Scan is not working well for cfg_a3_vth_E
-		zero_E, noise_E = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_vth_e")])
+		# WARNING: Scan is not working well for cfg_a3_ith_E
+		zero_E, noise_E = getBaselineAndNoise(noiseProfiles[(portID, slaveID, chipID, channelID, "cfg_a3_ith_e")])
 		
 		gzero_T1[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, zero_T1)
 		gzero_T2[(portID, slaveID, chipID)].SetPoint(nPoints[(portID, slaveID, chipID)],channelID, zero_T2)
