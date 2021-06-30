@@ -82,60 +82,27 @@ EventBuffer<Hit> * ProcessHit::handleEvents (EventBuffer<RawHit> *inBuffer)
 			out.energy = in.qfine;
 			if(useQDC) {
 			
-				float ti = in.timeEndQ - in.time;
-				if(ti < -256) ti += 1024;
+				// Calculate the event's integration time
+				float ti = double(in.timeEndQ) - out.time;
 				
-				// Convert ADC into equivalent DC integration time t_eq
-				// Solve P(t_eq) - in.efine = 0 using Newton–Raphson method
-				// 5 iterations are more than enought
-				float p0 = cq.p0 - in.qfine;
-				float t_eq = ti;
-				float delta = 0;
-				int iter = 0;
-				do {
-					float f = (cq.p0 - in.qfine) +
-						cq.p1 * t_eq + 
-						cq.p2 * t_eq * t_eq + 
-						cq.p3 * t_eq * t_eq * t_eq + 
-						cq.p4 * t_eq * t_eq * t_eq * t_eq +
-						cq.p5 * t_eq * t_eq * t_eq * t_eq * t_eq + 
-						cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
-						cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq + 
-						cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq +
-						cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq;
+				// Calculate the pedestal from the polynomial
+				float pedestal = 
+					cq.p0 +
+					cq.p1 * ti +
+					cq.p2 * ti * ti +
+					cq.p3 * ti * ti * ti +
+					cq.p4 * ti * ti * ti * ti +
+					cq.p5 * ti * ti * ti * ti * ti +
+					cq.p6 * ti * ti * ti * ti * ti * ti +
+					cq.p7 * ti * ti * ti * ti * ti * ti * ti +
+					cq.p8 * ti * ti * ti * ti * ti * ti * ti * ti +
+					cq.p9 * ti * ti * ti * ti * ti * ti * ti * ti * ti;
 
-					float f_ = cq.p1 +
-						cq.p2 * t_eq * 2 + 
-						cq.p3 * t_eq * t_eq * 3 + 
-						cq.p4 * t_eq * t_eq * t_eq * 4 +
-						cq.p5 * t_eq * t_eq * t_eq * t_eq * 5 + 
-						cq.p6 * t_eq * t_eq * t_eq * t_eq * t_eq * 6 + 
-						cq.p7 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 7 + 
-						cq.p8 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 8 +
-						cq.p9 * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * t_eq * 9;
-
-					delta = - f / f_;
-
-					// Avoid very large steps
-					if(delta < -10.0) delta = -10.0;
-					if(delta > +10.0) delta = +10.0;
-
-					t_eq = t_eq + delta;
-					iter += 1;
-				} while ((fabs(delta) > 0.05) && (iter < 100));
+				// Subtract the pedestal from the ASIC's raw QDC measurement
+				out.energy = in.qfine - pedestal;
 				
-				// Express energy as t_eq - actual integration time
-				// WARNING Adding 1.0 clock to shift spectrum into positive range
-				// .. needs better understanding.
-				out.energy = t_eq - ti ;
 				if(cq.p1 == 0) eventFlags |= 0x4;
-			
-				if(useEnergyCal){
-					float Energy =  cen.p0 * pow(cen.p1,pow(out.energy,cen.p2)) + cen.p3 * out.energy - cen.p0;	 
-					out.energy = Energy;
-					if(cen.p0 == 0) eventFlags |= 0x16;
-				}
-			
+		
 			}
 			
 			out.region = -1;
