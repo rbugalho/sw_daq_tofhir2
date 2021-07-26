@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import sys
+import argparse
+import bitarray
+from petsys import config, tofhir2, bitarray_utils
+
+
+def build_command(command_type, chipID, channelID, asicsConfig, print_flags, ith1, ith2, ithe):
+	if command_type == "global32_write":
+		register_id = 32			# Register ID
+		register_write = True
+		cfg_class = tofhir2.AsicGlobalConfig
+		cfg_value = asicsConfig[None].globalConfig
+
+	elif command_type == "global32_read":
+		register_id = 32			# Register ID
+		register_write = False
+		cfg_class = tofhir2.AsicGlobalConfig
+		cfg_value = tofhir2.AsicGlobalConfig()
+
+	elif command_type == "global33_write":
+		register_id = 33			# Register ID
+		register_write = True
+		cfg_class = tofhir2.AsicGlobalConfigTX
+		cfg_value = tofhir2.AsicGlobalConfigTX()
+
+	elif command_type == "channel_write":
+		register_id = channelID			# Register ID
+		register_write = True
+		cfg_class = tofhir2.AsicChannelConfig
+		cfg_value = asicsConfig[None].channelConfig[0]
+                if ith1 is not None:
+                        cfg_value.setValue("ith_t1", int(ith1))
+                if ith2 is not None:
+                        cfg_value.setValue("ith_t2", int(ith2))
+                if ithe is not None:
+                        cfg_value.setValue("ith_e", int(ithe))
+		
+	else:
+		register_id = channelID			# Register ID
+		register_write = False
+		cfg_class = tofhir2.AsicChannelConfig
+		cfg_value = tofhir2.AsicChannelConfig()
+
+	l = len(cfg_value)
+	payload = bitarray.bitarray(256)
+	payload.setall(False)
+	payload[0:l] = cfg_value[0:l]
+	payload = bytearray(payload.tobytes())
+	#print "DEBUG LEN = ", l
+	#print "DEBUG PL  ", (" ").join([ "%02X" % v for v in payload ])
+
+	composed_command =  bytearray([
+			0x2F, 0xAF, 0xC1,
+			chipID,
+			(register_write and 0x80 or 0x00) | register_id,
+			l-1
+			]) + payload
+	
+
+	asic_s = (", ").join(["...", "K28.5",  "K28.1" ] + [ "0x%02X" % v for v in composed_command[0: ] ] + [ "K28.5", "..."])
+	cmd32 = [0 for n in range(9)]
+	for n, v in enumerate(composed_command[5:]):
+		idx32 = n/4 
+		sh32 = n % 4
+		sh32 *= 8
+
+		v32 = cmd32[idx32]
+		v32 = v32 | (v << sh32)
+		cmd32[idx32] = v32
+		
+		
+	cmd32[7] |= 0xF0000000
+		
+	daq_s = (",").join([ "0x%08X" % v for v in cmd32])
+	
+	if command_type == "global32_write" or command_type == "global32_read":
+		T1 = "GLOBAL"
+		T2 = "globalc"
+	elif command_type == "global33_write":
+		T1 = "GLOBALTX"
+		T2 = "globaltxc"
+	else:
+		T1 = "CHANNEL"
+		T2 = "channelc"
+		
+	if print_flags & 0x4:
+		print "%s RAW CONFIG: %s" % (T1, cfg_value)
+		cfg_value.printAllValues()
+	
+	if print_flags & 0x1:
+		print  "ASIC %s COMMAND: %s" %  (T1, asic_s)
+	
+	if print_flags & 0x2:
+		print "%s = dict(\n\tconfig = (%s)\n)" % (T2, daq_s)
+	
+
+def main(argv):
+	
+	parser = argparse.ArgumentParser(description='Build/parse ASIC command/reply')
+	parser.add_argument("--command_type", choices=["global32_write", "global32_read", "channel_write", "channel_read", "all_write"], help="Command type", default="all_write")
+	parser.add_argument("--mode", default="build", choices=["build", "parse"], help="Build a command or parse a replay")
+	parser.add_argument("--pf", default=2, type=int, help="Select what to print")
+	parser.add_argument("--chip", default=0, type=int, help="Chip ID")
+	parser.add_argument("--channel", default=0, type=int, help="Channel ID")
+	parser.add_argument("--config", type=str, required=True, help="Configuration file")
+        parser.add_argument("--ith1", type=str, dest="ith1", required=False, help="ith1 value")
+        parser.add_argument("--ith2", type=str, dest="ith2", required=False, help="ith2 value")
+        parser.add_argument("--ithe", type=str, dest="ithe", required=False, help="ithe value")
+	args = parser.parse_args()
+
+	
+	if args.mode == "build":
+			asicsConfig = { None : tofhir2.AsicConfig() }
+			systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
+			systemConfig.applyConfigToAsics(asicsConfig)
+
+			if args.command_type == "global32_write":
+				build_command("global32_write", args.chip, args.channel, asicsConfig, args.pf, args.ith1, args.ith2, args.ithe)
+			elif args.command_type == "channel_write":
+				build_command("channel_write", args.chip, args.channel, asicsConfig, args.pf, args.ith1, args.ith2, args.ithe)
+			else:
+				build_command("global32_write", args.chip, args.channel, asicsConfig, args.pf, args.ith1, args.ith2, args.ithe)
+				build_command("global33_write", args.chip, args.channel, asicsConfig, args.pf, args.ith1, args.ith2, args.ithe)
+				build_command("channel_write", args.chip, args.channel, asicsConfig, args.pf, args.ith1, args.ith2, args.ithe)
+	
+		
+	else:
+		sys.stderr.write("The decoding mode is not implemented in this version of the script\n")
+		return 1
+
+	return 0
+
+
+
+if __name__ == '__main__':
+	sys.exit(main(sys.argv))

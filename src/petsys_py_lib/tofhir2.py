@@ -227,7 +227,7 @@ class AsicGlobalConfigTX(AbstractConfig):
 		super(AsicGlobalConfigTX, self).__init__()
 
 		fields_d3 = [
-			("c_tx_mode",	3,	0,	0),
+			("c_tx_mode",	3,	0,	0b1000),
 			("c_tx_clps",	13,	4,	0x3FF)
 		]
 		l_d3 = 14
