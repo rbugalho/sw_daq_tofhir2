@@ -260,6 +260,7 @@ void displayHelp(char * program)
 	fprintf(stderr,  "  --writeBinary \t Set the output data format to binary\n");
 	fprintf(stderr,  "  --writeRoot \t\t Set the output data format to ROOT TTree\n");
 	fprintf(stderr,  "  --writeFraction N \t\t Fraction of events to write. Default: 100%.\n");
+	fprintf(stderr,  "  --daqv1 \t\t Parse DAQv1 data.\n");
 	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");	
 	
 };
@@ -276,6 +277,7 @@ int main(int argc, char *argv[])
         char *outputFileName = NULL;
 	FILE_TYPE fileType = FILE_TEXT;
 	long long eventFractionToWrite = 1024;
+	int parser_type = 0;
 
 
         static struct option longOptions[] = {
@@ -283,8 +285,8 @@ int main(int argc, char *argv[])
                 { "config", required_argument, 0, 0 },
 		{ "writeBinary", no_argument, 0, 0 },
 		{ "writeRoot", no_argument, 0, 0 },
-		{ "writeFraction", required_argument }
-		
+		{ "writeFraction", required_argument },
+		{ "daqv1", no_argument, 0, 0 },
         };
 
         while(true) {
@@ -307,6 +309,7 @@ int main(int argc, char *argv[])
 			case 2:		fileType = FILE_BINARY; break;
 			case 3:		fileType = FILE_ROOT; break;
 			case 4:		eventFractionToWrite = round(1024 *boost::lexical_cast<float>(optarg) / 100.0); break;
+			case 5:		parser_type = 1; break;
 
 			default:	displayUsage(argv[0]); exit(1);
 			}
@@ -342,19 +345,32 @@ int main(int argc, char *argv[])
 	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, reader->getFrequency(),  fileType, eventFractionToWrite);
 	
-	for(int stepIndex = 0; stepIndex < reader->getNSteps(); stepIndex++) {
-		float step1, step2;
-		reader->getStepValue(stepIndex, step1, step2);
-		printf("Processing step %d of %d: (%f, %f)\n", stepIndex+1, reader->getNSteps(), step1, step2);
-		fflush(stdout);
-		reader->processStep(stepIndex, true,
-				new CoarseSorter(
-				new ProcessHit(config, reader,
-				new WriteHelper(dataFileWriter, step1, step2,
-				new NullSink<Hit>()
-				))));
-		
+	if( parser_type == 1 ) {
+		float step1 = 0, step2 = 0;
+		reader->processStep(0, true,
+			new CoarseSorter(
+			new ProcessHit(config, reader,
+			new WriteHelper(dataFileWriter, step1, step2,
+			new NullSink<Hit>()
+			))));
+
 		dataFileWriter->closeStep(step1, step2);
+	}
+	else {
+		for(int stepIndex = 0; stepIndex < reader->getNSteps(); stepIndex++) {
+			float step1, step2;
+			reader->getStepValue(stepIndex, step1, step2);
+			printf("Processing step %d of %d: (%f, %f)\n", stepIndex+1, reader->getNSteps(), step1, step2);
+			fflush(stdout);
+			reader->processStep(stepIndex, true,
+					new CoarseSorter(
+					new ProcessHit(config, reader,
+					new WriteHelper(dataFileWriter, step1, step2,
+					new NullSink<Hit>()
+					))));
+
+			dataFileWriter->closeStep(step1, step2);
+		}
 	}
 
 	delete dataFileWriter;

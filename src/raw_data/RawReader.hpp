@@ -2,6 +2,8 @@
 #define __PETSYS__RAW_READER_HPP__DEFINED__
 
 #include <EventSourceSink.hpp>
+#include <AbstractRawReader.hpp>
+
 #include <Event.hpp>
 
 #include <vector>
