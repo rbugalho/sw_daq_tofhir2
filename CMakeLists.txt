@@ -77,6 +77,7 @@ add_library ( common STATIC
 	"src/base/ThreadPool.cpp"
 	"src/base/SystemConfig.cpp"
 	"src/raw_data/RawReader.cpp"
+	"src/raw_data/DAQv1Reader.cpp"
 	"src/base/Instrumentation.cpp"
 	"src/base/CoarseSorter.cpp"
 	"src/base/ProcessHit.cpp"
