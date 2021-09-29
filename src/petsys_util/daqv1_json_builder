@@ -67,7 +67,9 @@ def write_json(asicsConfig, outputFileName):
 
 
 	json_data = (",\n").join(json_data)
-	print(json_data)
+	json_data += "\n"
+
+	outputFile.write(json_data)
 
 	outputFile.close()
 	return None
