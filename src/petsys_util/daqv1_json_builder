@@ -1,0 +1,136 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import sys
+import argparse
+import bitarray
+from petsys import config, tofhir2, bitarray_utils
+
+def main(argv):
+	
+	parser = argparse.ArgumentParser(description='Build a TOFHiR2 JSON file for DAQv1')
+	parser.add_argument("--config", type=str, required=True, help="Configuration file")
+	parser.add_argument("-o", type=str, required=True, help="Output file name")
+
+	parser.add_argument("--channel", default=0, type=int, help="Channel ID")
+        parser.add_argument("--vth_t1", type=int, dest="vth_t1", required=False, help="vth T1 value")
+
+	args = parser.parse_args()
+
+
+	# ccLink, ccPort and chipID
+	targetAsics = [ (1, 1, 1) ]
+
+	# Allocate  default ASIC configurations
+	asicsConfig = {}
+	for ccLink, ccPort, chipID in targetAsics:
+		asicsConfig[(ccLink, ccPort, chipID)] = tofhir2.AsicConfig()
+
+
+	# Apply configurations from config.ini
+	systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
+	systemConfig.applyConfigToAsics(asicsConfig)
+
+
+	# Modify the ASIC configurations as needed.
+	# Example: For every ASIC, set the thresholds of a channel
+	for (ccLink, ccPort, chipID), ac in asicsConfig.items():
+		cc = ac.channelConfig[args.channel]
+
+		if args.vth_t1 is not None: cc.setValue("cfg_a3_vth_t1", args.vth_t1)
+
+
+	## Template code to set ALDO voltage on ASIC (1, 13)
+	## Setting to low range, DAC = 200 (make up value)
+	#cfg_a3_vth_t1[(1, 13)].globalConfig.setValue("Valdo_A_Gain", 0)
+	#cfg_a3_vth_t1[(1, 13)].globalConfig.setValue("Valdo_A_DAC", 200)
+
+
+	write_json(asicsConfig, args.o)
+	return 0
+
+def write_json(asicsConfig, outputFileName):
+
+	outputFile = open(outputFileName, "w")
+
+	targetAsics = asicsConfig.keys()
+	targetAsics.sort()
+
+
+	json_data = []
+
+	for ccLink, ccPort, chipID in targetAsics:
+		ac = asicsConfig[(ccLink, ccPort, chipID)]
+
+		json_data.append(make_json_register(ccLink, ccPort, chipID, 32, ac.globalConfig))
+		for ch in range(32):
+			json_data.append(make_json_register(ccLink, ccPort, chipID, ch, ac.channelConfig[ch]))
+
+
+	json_data = (",\n").join(json_data)
+	print(json_data)
+
+	outputFile.close()
+	return None
+
+
+chipID_map = {
+	}
+
+def make_json_register(ccLink, ccPort, chipID, register_id, cfg_value):
+	register_write = True
+
+
+	register_length = len(cfg_value)
+	payload = bitarray.bitarray(256)
+	payload.setall(False)
+	payload[0:register_length] = cfg_value[0:register_length]
+	payload = bytearray(payload.tobytes())
+
+	cmd32 = [0 for n in range(8)]
+	for n, v in enumerate(payload):
+		idx32 = n/4
+		sh32 = n % 4
+		sh32 *= 8
+
+		v32 = cmd32[idx32]
+		v32 = v32 | (v << sh32)
+		cmd32[idx32] = v32
+
+
+
+
+	json_data = []
+	json_data.append(
+'''	{
+		"CC link" : "%(ccLink)02X",
+		"CC port" : "%(ccPort)02X",
+		"ChipID" : "%(chipID)02X",
+		"R/W mode" : "1",
+		"Register address" : "%(register_id)02X",
+		"Register length" : %(register_length)02X"
+	}''' % locals())
+
+
+	for idx32, v32 in enumerate(cmd32):
+		rev32 = 7 - idx32
+		json_data.append("""\t{\n\t\t"dword%(rev32)d" : "%(v32)08X"\n\t}""" % locals())
+
+
+	global_chip_id = (ccLink << 12) | (ccPort << 6) | chipID
+	json_data = (",\n").join(json_data)
+	json_data = '''"Chip_%(global_chip_id)08X_Reg%(register_id)02d" : [\n%(json_data)s\n]''' % locals()
+
+	return json_data
+
+
+
+
+
+
+
+	return  None
+
+
+
+if __name__ == '__main__':
+	sys.exit(main(sys.argv))
