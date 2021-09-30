@@ -12,7 +12,7 @@ def main(argv):
 	parser.add_argument("-o", type=str, required=True, help="Output file name")
 
 	parser.add_argument("--channel", default=0, type=int, help="Channel ID")
-        parser.add_argument("--vth_t1", type=int, dest="vth_t1", required=False, help="vth T1 value")
+        parser.add_argument("--ith_t1", type=int, dest="ith_t1", required=False, help="vth T1 value")
 
 	args = parser.parse_args()
 
@@ -36,13 +36,13 @@ def main(argv):
 	for (ccLink, ccPort, chipID), ac in asicsConfig.items():
 		cc = ac.channelConfig[args.channel]
 
-		if args.vth_t1 is not None: cc.setValue("cfg_a3_vth_t1", args.vth_t1)
+		if args.ith_t1 is not None: cc.setValue("cfg_a3_ith_t1", args.ith_t1)
 
 
 	## Template code to set ALDO voltage on ASIC (1, 13)
 	## Setting to low range, DAC = 200 (make up value)
-	#cfg_a3_vth_t1[(1, 13)].globalConfig.setValue("Valdo_A_Gain", 0)
-	#cfg_a3_vth_t1[(1, 13)].globalConfig.setValue("Valdo_A_DAC", 200)
+	#cfg_a3_ith_t1[(1, 13)].globalConfig.setValue("Valdo_A_Gain", 0)
+	#cfg_a3_ith_t1[(1, 13)].globalConfig.setValue("Valdo_A_DAC", 200)
 
 
 	write_json(asicsConfig, args.o)

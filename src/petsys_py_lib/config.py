@@ -127,7 +127,15 @@ class Config:
 		self.__ALDOACalibrationTable = {}
 		self.__ALDOBCalibrationTable = {}
 		self.__hw_trigger = None
-
+	def applyConfigToAsics(self, asicsConfig):
+		# Apply ASIC parameters from file
+		for (gc, key), value in self.__asicParameterTable.items():
+			for ac in asicsConfig.values():
+				if gc == "global":
+					ac.globalConfig.setValue(key, value)
+				else:
+					for cc in ac.channelConfig:
+						cc.setValue(key, value)
 
 	def loadToHardware(self, daqd, bias_enable=APPLY_BIAS_OFF, hw_trigger_enable=False, qdc_mode = "qdc"):
 		#
