@@ -1,4 +1,5 @@
 #include <RawReader.hpp>
+#include <DAQv1Reader.hpp>
 #include <OverlappedEventHandler.hpp>
 #include <getopt.h>
 #include <assert.h>
@@ -334,43 +335,33 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	RawReader *reader = RawReader::openFile(inputFilePrefix);
-	
-	// If data was taken in ToT mode, do not attempt to load these files
-	unsigned long long mask = SystemConfig::LOAD_ALL;
-	if(reader->isTOT()) {
-		mask ^= (SystemConfig::LOAD_QDC_CALIBRATION | SystemConfig::LOAD_ENERGY_CALIBRATION);
+	AbstractRawReader *reader;
+	if( parser_type == 1 ) {
+		reader = DAQv1Reader::openFile(inputFilePrefix, NULL);
 	}
+	else {
+		reader = RawReader::openFile(inputFilePrefix);
+	}
+
+	
+	unsigned long long mask = SystemConfig::LOAD_ALL;
 	SystemConfig *config = SystemConfig::fromFile(configFileName, mask);
 	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, reader->getFrequency(),  fileType, eventFractionToWrite);
 	
-	if( parser_type == 1 ) {
-		float step1 = 0, step2 = 0;
-		reader->processStep(0, true,
-			new CoarseSorter(
-			new ProcessHit(config, reader,
-			new WriteHelper(dataFileWriter, step1, step2,
-			new NullSink<Hit>()
-			))));
+	for(int stepIndex = 0; stepIndex < reader->getNSteps(); stepIndex++) {
+		float step1, step2;
+		reader->getStepValue(stepIndex, step1, step2);
+		printf("Processing step %d of %d: (%f, %f)\n", stepIndex+1, reader->getNSteps(), step1, step2);
+		fflush(stdout);
+		reader->processStep(stepIndex, true,
+				new CoarseSorter(
+				new ProcessHit(config, reader,
+				new WriteHelper(dataFileWriter, step1, step2,
+				new NullSink<Hit>()
+				))));
 
 		dataFileWriter->closeStep(step1, step2);
-	}
-	else {
-		for(int stepIndex = 0; stepIndex < reader->getNSteps(); stepIndex++) {
-			float step1, step2;
-			reader->getStepValue(stepIndex, step1, step2);
-			printf("Processing step %d of %d: (%f, %f)\n", stepIndex+1, reader->getNSteps(), step1, step2);
-			fflush(stdout);
-			reader->processStep(stepIndex, true,
-					new CoarseSorter(
-					new ProcessHit(config, reader,
-					new WriteHelper(dataFileWriter, step1, step2,
-					new NullSink<Hit>()
-					))));
-
-			dataFileWriter->closeStep(step1, step2);
-		}
 	}
 
 	delete dataFileWriter;

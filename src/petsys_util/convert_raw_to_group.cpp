@@ -1,4 +1,5 @@
 #include <RawReader.hpp>
+#include <DAQv1Reader.hpp>
 #include <OverlappedEventHandler.hpp>
 #include <getopt.h>
 #include <assert.h>
@@ -249,7 +250,8 @@ void displayHelp(char * program)
 	fprintf(stderr,  "  --writeRoot \t\t Set the output data format to ROOT TTree\n");
 	fprintf(stderr,  "  --writeMultipleHits N \t\t Writes multiple hits, up to the Nth hit\n");
 	fprintf(stderr,  "  --writeFraction N \t\t Fraction of events to write. Default: 100%.\n");
-	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");	
+	fprintf(stderr,  "  --daqv1 \t\t Parse DAQv1 data.\n");
+	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");
 	
 };
 
@@ -267,6 +269,7 @@ int main(int argc, char *argv[])
 	FILE_TYPE fileType = FILE_TEXT;
 	int hitLimitToWrite = 1;
 	long long eventFractionToWrite = 1024;
+	int parser_type = 0;
 
         static struct option longOptions[] = {
                 { "help", no_argument, 0, 0 },
@@ -274,7 +277,8 @@ int main(int argc, char *argv[])
 		{ "writeBinary", no_argument, 0, 0 },
 		{ "writeRoot", no_argument, 0, 0 },
 		{ "writeMultipleHits", required_argument, 0, 0},
-		{ "writeFraction", required_argument }
+		{ "writeFraction", required_argument },
+		{ "daqv1", no_argument, 0, 0 },
         };
 
         while(true) {
@@ -298,6 +302,8 @@ int main(int argc, char *argv[])
 			case 3:		fileType = FILE_ROOT; break;
 			case 4:		hitLimitToWrite = boost::lexical_cast<int>(optarg); break;
 			case 5:		eventFractionToWrite = round(1024 *boost::lexical_cast<float>(optarg) / 100.0); break;
+			case 6:		parser_type = 1; break;
+
 			default:	displayUsage(argv[0]); exit(1);
 			}
 		}
@@ -321,13 +327,16 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	RawReader *reader = RawReader::openFile(inputFilePrefix);
-	
-	// If data was taken in ToT mode, do not attempt to load these files
-	unsigned long long mask = SystemConfig::LOAD_ALL;
-	if(reader->isTOT()) {
-		mask ^= (SystemConfig::LOAD_QDC_CALIBRATION | SystemConfig::LOAD_ENERGY_CALIBRATION);
+	AbstractRawReader *reader;
+	if( parser_type == 1 ) {
+		reader = DAQv1Reader::openFile(inputFilePrefix, NULL);
 	}
+	else {
+		reader = RawReader::openFile(inputFilePrefix);
+	}
+
+
+	unsigned long long mask = SystemConfig::LOAD_ALL;
 	SystemConfig *config = SystemConfig::fromFile(configFileName, mask);
 	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, reader->getFrequency(), fileType, hitLimitToWrite, eventFractionToWrite);

@@ -290,3 +290,8 @@ void DAQv1Reader::processStep(int n, bool verbose, EventSink<RawHit> *sink)
 	delete sink;
 	
 }
+
+int DAQv1Reader::getTriggerID()
+{
+	return 0;
+}

@@ -7,10 +7,9 @@
 #include <vector>
 
 namespace PETSYS {
-	class AbstractRawReader {
+	class AbstractRawReader :  public EventStream {
 	public:
 		virtual ~AbstractRawReader() {};
-		virtual bool isQDC() = 0;
 		virtual double getFrequency() = 0;
 		virtual int getNSteps() = 0;
 		virtual void getStepValue(int n, float &step1, float &step2) = 0;

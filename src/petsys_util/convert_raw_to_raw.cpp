@@ -200,6 +200,7 @@ int main(int argc, char *argv[])
         char *inputFilePrefix = NULL;
 	char *outputFileName = NULL;
 	long long eventFractionToWrite = 1024;
+	int parser_type = 0;
 	char *decoder_log_name = NULL;
 
     
@@ -207,6 +208,7 @@ int main(int argc, char *argv[])
                 { "help", no_argument, 0, 0 },
                 { "config", required_argument, 0, 0 },
 		{ "writeFraction", required_argument },
+		{ "daqv1", no_argument, 0, 0 },
 		{ "decoder-log", required_argument }
 
         };
@@ -229,7 +231,8 @@ int main(int argc, char *argv[])
 			case 0:		displayHelp(argv[0]); exit(0); break;
                         case 1:		configFileName = optarg; break;
 			case 2:		eventFractionToWrite = round(1024 *boost::lexical_cast<float>(optarg) / 100.0); break;
-			case 3:         decoder_log_name = optarg; break;
+			case 3:		parser_type = 1; break;
+			case 4:         decoder_log_name = optarg; break;
 			default:	displayUsage(argv[0]); exit(1);
 			}
 		}
@@ -263,8 +266,14 @@ int main(int argc, char *argv[])
 	  }
 	}
 	
-	DAQv1Reader *reader = DAQv1Reader::openFile(inputFilePrefix, decoder_log_file); 
-
+	AbstractRawReader *reader;
+	if( parser_type == 1 ) {
+		reader = DAQv1Reader::openFile(inputFilePrefix, NULL);
+	}
+	else {
+		reader = RawReader::openFile(inputFilePrefix);
+	}
+	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, FILE_ROOT, eventFractionToWrite);
 	
 	for(int stepIndex = 0; stepIndex < reader->getNSteps(); stepIndex++) {

@@ -1,4 +1,5 @@
 #include <RawReader.hpp>
+#include <DAQv1Reader.hpp>
 #include <OverlappedEventHandler.hpp>
 #include <getopt.h>
 #include <assert.h>
@@ -336,7 +337,8 @@ void displayHelp(char * program)
         fprintf(stderr,  "  --coincidence \t Only save coincidences\n");
         fprintf(stderr,  "  --refChannel \t Reference channel\n");
         fprintf(stderr,  "  --pedestals \t Use pedestals in energy reconstruction\n");
-	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");	
+	fprintf(stderr,  "  --daqv1 \t\t Parse DAQv1 data.\n");
+	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");
 	
 };
 
@@ -357,6 +359,7 @@ int main(int argc, char *argv[])
         bool coincidence = false;
         int refChannel = -1;
         bool pedestals;
+	int parser_type = 0;
 
         static struct option longOptions[] = {
                 { "help", no_argument, 0, 0 },
@@ -367,7 +370,8 @@ int main(int argc, char *argv[])
 		{ "writeFraction", required_argument },
 		{ "coincidence", no_argument, 0, 0 },
 		{ "refChannel", required_argument, 0, 0 },
-		{ "pedestals", no_argument, 0, 0 }
+		{ "pedestals", no_argument, 0, 0 },
+		{ "daqv1", no_argument, 0, 0 },
         };
 
         while(true) {
@@ -394,6 +398,8 @@ int main(int argc, char *argv[])
                         case 6:         coincidence = true; break;
                         case 7:         refChannel = boost::lexical_cast<int>(optarg); break;
                         case 8:         pedestals = true; break;
+			case 9:		parser_type = 1; break;
+
 			default:	displayUsage(argv[0]); exit(1);
 			}
 		}
@@ -425,13 +431,16 @@ int main(int argc, char *argv[])
           pedestalFile = TFile::Open(pedestalFileName.c_str(),"READ");
         }
         
-	RawReader *reader = RawReader::openFile(inputFilePrefix);
-	
-	// If data was taken in ToT mode, do not attempt to load these files
-	unsigned long long mask = SystemConfig::LOAD_ALL;
-	if(reader->isTOT()) {
-		mask ^= (SystemConfig::LOAD_QDC_CALIBRATION | SystemConfig::LOAD_ENERGY_CALIBRATION);
+	AbstractRawReader *reader;
+	if( parser_type == 1 ) {
+		reader = DAQv1Reader::openFile(inputFilePrefix, NULL);
 	}
+	else {
+		reader = RawReader::openFile(inputFilePrefix);
+	}
+
+
+	unsigned long long mask = SystemConfig::LOAD_ALL;
 	SystemConfig *config = SystemConfig::fromFile(configFileName, mask);
 	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, reader->getFrequency(), fileType, hitLimitToWrite, eventFractionToWrite, coincidence, refChannel, pedestalFile);

@@ -16,6 +16,7 @@ namespace PETSYS {
 
 		bool isQDC();
 		double getFrequency();
+		int getTriggerID();
 		int getNSteps();
 		void getStepValue(int n, float &step1, float &step2);
 		void processStep(int n, bool verbose, EventSink<RawHit> *pipeline);
