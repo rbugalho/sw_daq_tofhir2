@@ -4,6 +4,7 @@ import sys
 import argparse
 import bitarray
 from petsys import config, tofhir2, bitarray_utils
+import json
 
 def main(argv):
 	
@@ -39,10 +40,10 @@ def main(argv):
 		if args.ith_t1 is not None: cc.setValue("cfg_a3_ith_t1", args.ith_t1)
 
 
-	## Template code to set ALDO voltage on ASIC (1, 13)
+	## Template code to set ALDO voltage on ASIC (1, 1, 1)
 	## Setting to low range, DAC = 200 (make up value)
-	#cfg_a3_ith_t1[(1, 13)].globalConfig.setValue("Valdo_A_Gain", 0)
-	#cfg_a3_ith_t1[(1, 13)].globalConfig.setValue("Valdo_A_DAC", 200)
+	#asicsConfig[(1, 1, 1)].globalConfig.setValue("Valdo_A_Gain", 0)
+	#asicsConfig[(1, 1, 1)].globalConfig.setValue("Valdo_A_DAC", 200)
 
 
 	write_json(asicsConfig, args.o)
@@ -66,10 +67,7 @@ def write_json(asicsConfig, outputFileName):
 			json_data.append(make_json_register(ccLink, ccPort, chipID, ch, ac.channelConfig[ch]))
 
 
-	json_data = (",\n").join(json_data)
-	json_data += "\n"
-
-	outputFile.write(json_data)
+	outputFile.write(json.dumps(json_data, sort_keys=True, indent=4))
 
 	outputFile.close()
 	return None
@@ -102,25 +100,23 @@ def make_json_register(ccLink, ccPort, chipID, register_id, cfg_value):
 
 
 	json_data = []
-	json_data.append(
-'''	{
-		"CC link" : "%(ccLink)02X",
-		"CC port" : "%(ccPort)02X",
-		"ChipID" : "%(chipID)02X",
+	json_data.append({
+		"CC link" : "%02X" % ccLink,
+		"CC port" : "%02X" % ccPort,
+		"ChipID" : "%02X" % chipID,
 		"R/W mode" : "1",
-		"Register address" : "%(register_id)02X",
-		"Register length" : %(register_length)02X"
-	}''' % locals())
+		"Register address" : "%02X" % register_id,
+		"Register length" : "%02X" % register_length
 
+		})
 
 	for idx32, v32 in enumerate(cmd32):
 		rev32 = 7 - idx32
-		json_data.append("""\t{\n\t\t"dword%(rev32)d" : "%(v32)08X"\n\t}""" % locals())
+		json_data.append({ "dword%d" % rev32 : "%08X" % v32 })
 
 
-	global_chip_id = (ccLink << 12) | (ccPort << 6) | chipID
-	json_data = (",\n").join(json_data)
-	json_data = '''"Chip_%(global_chip_id)08X_Reg%(register_id)02d" : [\n%(json_data)s\n]''' % locals()
+	global_chip_id = (ccLink << 16) | (ccPort << 8) | chipID
+	json_data = { "Chip_%08X_reg%02d" % (global_chip_id, register_id) : json_data }
 
 	return json_data
 
