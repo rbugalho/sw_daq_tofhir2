@@ -139,9 +139,10 @@ class AsicGlobalConfig(AbstractConfig):
 			("c_tp_length", 93, 84,		0),
 			("c_counter_lost", 94, 94,	0),
 			("c_aldo_en", 96, 95,		0),
-			("c_aldo_range", 98, 97,	0)
+			("c_aldo_range", 98, 97,	0),
+			("c_backpressure_length", 103, 99, 0)
 		]
-		l_d3 = 99
+		l_d3 = 104
 
 		fields_d2 = [
 			("c_ext_tp_en", 0, 0, 0),
@@ -371,19 +372,20 @@ class AsicChannelConfig(AbstractConfig):
 			("cfg_a3_ith_t1", 8, 3, 31),
 			("cfg_a3_ith_t2", 14, 9, 44),
 			("cfg_a3_ith_e", 20, 15, 10),
-			("cfg_a2_attenuator_dc_cancel_en", 21, 21, 1),
-			("cfg_a2_attenuator_gain", 24, 22, 7),
-			("cfg_a3_range_t1", 26, 25, 1),
-			("cfg_a3_range_t2", 28, 27, 0),
-			("cfg_a3_range_e", 30, 29, 0),
-			("cfg_a2_dcr_delay_t", 38, 31, 0b00001111),
-			("cfg_a2_dcr_delay_e", 45, 39, 0b0001111),
-			("cfg_a2_pulse_trim_t", 50, 46, 15),
-			("cfg_a2_pulse_trim_e", 55, 51, 19),
-			("cfg_a1_fetp_en", 56, 56, 0),
-			("cfg_a1_power_down", 57, 57, 0)
+			("cfg_a2_attenuator_gain", 23, 21, 7),
+			("cfg_a3_range_t1", 25, 24, 1),
+			("cfg_a3_range_t2", 27, 26, 0),
+			("cfg_a3_range_e", 29, 28, 0),
+			("cfg_a2_dcr_delay_e", 36, 30, 0b0001111),
+			("cfg_a2_dc_trim", 42, 37, 15),
+			("cfg_a2_dcr_delay_t", 50, 43, 0b00001111),
+			("cfg_a2_pulse_trim_t", 55, 51, 15),
+			("cfg_a2_pulse_trim_e", 60, 56, 19),
+			("cfg_a1_power_down", 61, 61, 0),
+			("cfg_a1_fetp_en", 62, 62, 0),
+			("cfg_a1_scaling", 63, 63, 0)
 		]
-		l_a123 = 58
+		l_a123 = 64
 		
 
 		l, f = compile_cfg_map (
