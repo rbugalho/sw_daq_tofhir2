@@ -397,7 +397,7 @@ void calibrateAsic(
 			int c = pFine->GetBinEntries(bMax);
 			if(c < 10) continue;
 			float v = pFine->GetBinContent(bMax);
-			if (v < 10) break;
+			if (v < 2) break;
 			if (v > 1014) break;
 			
 		}
@@ -446,19 +446,27 @@ void calibrateAsic(
 		entry.valid = false;
 
 		
+		float lastChi2 = INFINITY;
+
 		// Attempt to fit 9th order polynomial but fall back down to 3rd order if needed
-		for(int order = 9; (order > 3) && !entry.valid; order--) {
+		for(int order = 3; (order <= 9) && !entry.valid; order++) {
 			char functionName[16];
 			sprintf(functionName, "pol%d", order);
 
 			pFine->Fit(functionName, "Q", "", xMin, xMax);
 			TF1 *polN = pFine->GetFunction(functionName);
 			if(polN == NULL) // No fit
-				continue;
+				break;
 
 			float chi2 = polN->GetChisquare();
 			if(chi2 == 0) // Chi² == 0 is a bad fit
-				continue;
+				break;
+
+			chi2 /= polN->GetNDF();
+			if(chi2 > lastChi2)
+				break;
+			lastChi2 = chi2;
+
 
 			if(order >= 0) entry.p0 = polN->GetParameter(0);
 			if(order >= 1) entry.p1 = polN->GetParameter(1);
@@ -503,7 +511,7 @@ void calibrateAsic(
 		pControlT_list[gid-gidStart] = new TProfile(hName, hName, 128, 0, 128*4, "s");
 		sprintf(hName, "c_%02d_%02d_%02d_%02d_%d_control_E", portID, slaveID, chipID, channelID, tacID);
 		
-		int ControlHistogramNBins = 256;
+		int ControlHistogramNBins = 32;
 		float ControlHistogramRange = 10.0;
 		hControlE_list[gid-gidStart] = new TH1S(hName, hName, ControlHistogramNBins, -ControlHistogramRange, ControlHistogramRange);
 	}
