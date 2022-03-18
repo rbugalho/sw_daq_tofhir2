@@ -933,19 +933,34 @@ class Connection:
 		
 		if command == "wrGlobalCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, True, True, value)
+			# Check write with readback twice
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
+
+			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
+			if readValue !=  value:
+				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
+
 			return status, tofhir2.AsicGlobalConfig(reply)
+
 		elif command == "rdGlobalCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, False, True, tofhir2.AsicGlobalConfig())
 			return status, tofhir2.AsicGlobalConfig(reply)
+
 		elif command == "wrChCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, True, True, value)
+			# Check write with readback twice
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
+
+			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
+			if readValue !=  value:
+				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
+
 			return status, tofhir2.AsicGlobalConfig(reply)
+
 		elif command == "rdChCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, False, True, tofhir2.AsicChannelConfig())
 			return status, tofhir2.AsicGlobalConfig(reply)
@@ -1276,6 +1291,9 @@ class Connection:
 		return None
 		
         ## Returns a data frame read form the shared memory block
+        def getDecodedDataFrame(self, nonEmpty=False):
+		return self.__getDecodedDataFrame(nonEmpty)
+
 	def __getDecodedDataFrame(self, nonEmpty=False):
 		timeout = 0.5
 		t0 = time()
@@ -1313,6 +1331,9 @@ class Connection:
 		return r
 
 	## Discards all data frames which may have been generated before the function is called. Used to synchronize data reading with the effect of previous configuration commands.
+	def synchronizeDataToConfig(self, clearFrames=True):
+		return self.__synchronizeDataToConfig(clearFrames)
+
 	def __synchronizeDataToConfig(self, clearFrames=True):
 		frameLength = 1024 / self.__systemFrequency
 

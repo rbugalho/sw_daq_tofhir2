@@ -377,7 +377,7 @@ class AsicChannelConfig(AbstractConfig):
 			("cfg_a3_range_t2", 27, 26, 0),
 			("cfg_a3_range_e", 29, 28, 0),
 			("cfg_a2_dcr_delay_e", 36, 30, 0b0001111),
-			("cfg_a2_dc_trim", 42, 37, 15),
+			("cfg_a2_dc_trim", 42, 37, 31),
 			("cfg_a2_dcr_delay_t", 50, 43, 0b00001111),
 			("cfg_a2_pulse_trim_t", 55, 51, 15),
 			("cfg_a2_pulse_trim_e", 60, 56, 19),

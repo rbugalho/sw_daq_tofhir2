@@ -16,6 +16,7 @@ LOAD_MAP		= 0x00000010
 LOAD_QDCMODE_MAP	= 0x00000020
 LOAD_BIAS_SETTINGS_ALDO	= 0x00000040
 LOAD_ALDO_CALIBRATION	= 0x00000080
+LOAD_QDC_CALIBRATION		= 0x00000100
 LOAD_ALL		= 0xFFFFFFFF
 
 APPLY_BIAS_OFF		= 0x0
@@ -90,6 +91,14 @@ def ConfigFromFile(configFileName, loadMask=LOAD_ALL):
 		config._Config__ALDOBCalibrationTable = t
 		config._Config__loadMask |= LOAD_ALDO_CALIBRATION
 
+	if (loadMask & LOAD_QDC_CALIBRATION) != 0:
+		fn = configParser.get("main", "qdc_calibration_table")
+		fn = replace_variables(fn, cdir)
+		t = readQDCTrimTable(fn)
+		config._Config__QDCTrimTable = t
+		config._Config__loadMask |= LOAD_QDC_CALIBRATION
+
+
 
 	# Load hw_trigger configuration IF hw_trigger section exists
 	hw_trigger_config = { "type" : None }
@@ -126,6 +135,7 @@ class Config:
 		self.__biasChannelSettingsTableAldo = {}
 		self.__ALDOACalibrationTable = {}
 		self.__ALDOBCalibrationTable = {}
+		self.__QDCTrimTable = {}
 		self.__hw_trigger = None
 	def applyConfigToAsics(self, asicsConfig):
 		# Apply ASIC parameters from file
@@ -195,7 +205,14 @@ class Config:
 
 					#cc.setValue("c_tgr_main", 0b11)
 
-                                        
+
+		if (self.__loadMask & LOAD_QDC_CALIBRATION) != 0:
+			for portID, slaveID, chipID in asicsConfig.keys():
+				ac = asicsConfig[(portID, slaveID, chipID)]
+				for channelID, cc in enumerate(ac.channelConfig):
+					cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)])
+
+
 		daqd.setAsicsConfig(asicsConfig)
 
 
@@ -440,6 +457,20 @@ def readQDCModeTable(fn):
 			exit(1)
 	f.close()
 	return c
+
+def readQDCTrimTable(fn):
+	f = open(fn)
+	c = {}
+        ln = 0
+	for l in f:
+                ln += 1
+		l = normalizeAndSplit(l)
+		if l == ['']: continue
+		portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
+		c[(portID, slaveID, chipID, channelID)] =  trim
+	f.close()
+	return c
+
 
 def readALDOCalibration(fn):
 	f = open(fn)

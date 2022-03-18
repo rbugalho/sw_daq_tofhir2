@@ -88,6 +88,7 @@ struct CalibrationEntry {
         float xMin;
 	float xMax;
 	float xMax100;
+	int trim;
 	bool valid;
 };
 
@@ -170,7 +171,25 @@ int main(int argc, char *argv[])
 	}
 	
 	CalibrationEntry *calibrationTable = (CalibrationEntry *)mmap(NULL, sizeof(CalibrationEntry)*MAX_N_QAC, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-	for(int gid = 0; gid < MAX_N_QAC; gid++) calibrationTable[gid].valid = false;
+	for(int gid = 0; gid < MAX_N_QAC; gid++) {
+		calibrationTable[gid].valid = false;
+		calibrationTable[gid].trim = -1;
+	}
+
+	// Read the QDC trim settings and store it in the calibration table
+	// The trim setting is per channel but the calibration table is per TAC
+	// so we simply replicate it across all TACs
+	sprintf(fName, "%s.trim", inputFilePrefix);
+	FILE *trimFile = fopen(fName, "r");
+	unsigned p, s, a, c, trim;
+	while(fscanf(trimFile, "%u\t%u\t%u\t%u\t%u\n", &p, &s, &a, &c, &trim) == 5) {
+		unsigned gidStart = (p << 19) | (s << 14) | (a << 8) | (c << 3);
+		unsigned gidEnd = gidStart + 8;
+
+		for(unsigned gid = gidStart; gid < gidEnd; gid++) {
+			calibrationTable[gid].trim = trim;
+		}
+	}
 
 	if(doSorting) {
 		sortData(inputFilePrefix, tmpFilePrefix);
@@ -738,7 +757,7 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
                 exit(1);
 	}
 
-	fprintf(f, "# portID\tslaveID\tchipID\tchannelID\ttacID\tp0\tp1\tp2\tp3\tp4\tp5\tp6\tp7\tp8\n");
+	fprintf(f, "# portID\tslaveID\tchipID\tchannelID\ttacID\ttrim\tp0\tp1\tp2\tp3\tp4\tp5\tp6\tp7\tp8\n");
 
 	for(unsigned long gid = 0; gid < MAX_N_QAC; gid++) {
 		CalibrationEntry &entry = calibrationTable[gid];
@@ -749,8 +768,9 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;
 	
-		fprintf(f, "%d\t%d\t%d\t%d\t%d\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\n",
+		fprintf(f, "%d\t%d\t%d\t%d\t%d\t%d\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\n",
 			portID, slaveID, chipID, channelID, tacID,
+			entry.trim,
 			entry.p0, entry.p1, entry.p2, entry.p3, entry.p4, entry.p5, entry.p6, entry.p7, entry.p8, entry.p9
 		);
 	}
