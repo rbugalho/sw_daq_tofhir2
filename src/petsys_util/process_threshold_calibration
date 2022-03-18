@@ -265,7 +265,7 @@ def main(argv):
                 multi2.Add(gzero_T1[(portID, slaveID, chipID)])
                 multi2.Add(gzero_T2[(portID, slaveID, chipID)])
                 multi2.Add(gzero_E[(portID, slaveID, chipID)])
-                multi2.SetMaximum(32)
+                multi2.SetMaximum(64)
                 multi2.SetMinimum(0)
                 multi2.SetTitle("Zero")
 
