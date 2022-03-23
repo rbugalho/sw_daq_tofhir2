@@ -125,10 +125,16 @@ def main(argv):
 			for t in range(8):
 				for n in range(nPhases):
 					count_short, total_short = qdc_short[(p,s,a,c,t,n)]
+					count_long, total_long = qdc_long[(p,s,a,c,t,n)]
+
+					if (count_short < 10) or (count_long < 10):
+						# This TAC is probably dead
+						trimmed_count += 1
+						continue
+
 					avg_short = float(total_short)/count_short
 					err_short = avg_short/math.sqrt(count_short)
 
-					count_long, total_long = qdc_long[(p,s,a,c,t,n)]
 					avg_long = float(total_long)/count_long
 					err_long = avg_long/math.sqrt(count_long)
 
