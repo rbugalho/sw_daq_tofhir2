@@ -307,8 +307,10 @@ class Connection:
 
 		# Reset the ASICs configuration
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0201, 0b00)
-		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b1)
-		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b0)
+		for k in range(10):
+			# Generate multiple resets to train the RESYNC receiver
+			for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b1)
+			for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b0)
 		self.__asicConfigCache = None
 		self.__asicConfigCache_TAC_Refresh = None
 
@@ -330,6 +332,9 @@ class Connection:
 				busID = chipID / 2
 				chipID = chipID % 2
 				self.__tofhir2_cmd(portID, slaveID, busID, chipID, 33, True, False, gctx)
+				# chipID[4] may be faulty on some PCB
+				self.__tofhir2_cmd(portID, slaveID, busID, chipID, 33, True, False, gctx)
+				self.__tofhir2_cmd(portID, slaveID, busID, 0x10 | chipID, 33, True, False, gctx)
 		
 		
 		#
