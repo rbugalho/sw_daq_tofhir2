@@ -70,35 +70,41 @@ def ltc2984_cfg_channels(conn):
 	#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
 
 		
-def ltc_read_channels(conn):
-	result = []
+def ltc_read_channels(conn, channelList=None):
+	result ={}
 
-	for chip in range(2):
-		for channel in range(3, 19, 2):
-			#print chip, channel
-			# start conversion
-			addr = 0x0000
-			value = 0b10000000 | channel
-			ltc2984_write(conn, chip, addr, 1, value)
+	if channelList is None:
+		channelList = [ (chip, channel) for chip in range(2) for channel in range(3, 19, 2) ]
+
+	for chip, channel in channelList:
+		#print chip, channel
+		# start conversion
+		addr = 0x0000
+		value = 0b10000000 | channel
+		ltc2984_write(conn, chip, addr, 1, value)
+	
+		sleep(0.3)
+		# check for done
+		#r = ltc2984_read(conn, chip, addr, 1)
+		#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
 		
-			sleep(0.3)
-			# check for done
-			#r = ltc2984_read(conn, chip, addr, 1)
-			#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
-			
-			# readout data
-			addr = 0x0010 + 0x04 * (channel - 1)
-			r = ltc2984_read(conn, chip, addr, 4)
-			#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
-			status = r[1]
-			value = (r[2] << 16) + (r[3] << 8) + (r[4])
-			temperature = value / 1024.0
+		# readout data
+		addr = 0x0010 + 0x04 * (channel - 1)
+		r = ltc2984_read(conn, chip, addr, 4)
+		#print "READ ", "0x%03X" % addr, "          ", [ "%02X" % v for v in r ]
+		status = r[1]
+		value = (r[2] << 16) + (r[3] << 8) + (r[4])
+		temperature = value / 1024.0
 
-			if status == 0x01:
-				status_msg = "OK"
-			else:
-				status_msg = "ERR"
-			print "CHIP %d CH %02d STATUS %03s (0x%02X) TEMP %10.3f ºC" % (chip, channel, status_msg, status, temperature)
+
+		if status == 0x01:
+			status_msg = "OK"
+			result[(chip, channel)] = temperature
+		else:
+			status_msg = "ERR"
+		print "CHIP %d CH %02d STATUS %03s (0x%02X) TEMP %10.3f ºC" % (chip, channel, status_msg, status, temperature)
+
+	return result
 		
 		
 def main(argv):
