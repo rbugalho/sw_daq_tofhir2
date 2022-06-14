@@ -305,6 +305,14 @@ class Connection:
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0213, 0b11) 
 		sleep(0.1) # Wait for power to stabilize
 
+		# Enable ASIC receiver logic for ASICs
+		# WORKAROUND:
+		# TOFHiR 2B FE CoB boards have a PCB problem
+		# Communication with A0 is erratic
+		# Disable those ASICS: (3, 0) and (4, 0) on the FEB/D T2TB adapter
+		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 64, 0x0318, 0b10101111)
+
+
 		# Reset the ASICs configuration
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0201, 0b00)
 		for k in range(10):
@@ -332,9 +340,6 @@ class Connection:
 				busID = chipID / 2
 				chipID = chipID % 2
 				self.__tofhir2_cmd(portID, slaveID, busID, chipID, 33, True, False, gctx)
-				# chipID[4] may be faulty on some PCB
-				self.__tofhir2_cmd(portID, slaveID, busID, chipID, 33, True, False, gctx)
-				self.__tofhir2_cmd(portID, slaveID, busID, 0x10 | chipID, 33, True, False, gctx)
 		
 		
 		#
@@ -412,9 +417,6 @@ class Connection:
 				#if readback != initialGlobalAsicConfig[(portID, slaveID, chipID)]:
 					#raise tofhir2b.ConfigurationErrorBadRead(portID, slaveID, chipID, initialGlobalAsicConfig[(portID, slaveID, chipID)], readback)
 			
-		# Enable ASIC receiver logic for all ASIC
-		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 64, 0x0318, 0xFFFFFFFFFFFFFFFF)
-
 		# Check which ASICs are receiving properly data words
 		deserializerStatus = [ False for x in range(MAX_PORTS * MAX_SLAVES * MAX_CHIPS) ]
 		decoderStatus = [ False for x in range(MAX_PORTS * MAX_SLAVES * MAX_CHIPS) ]
@@ -851,6 +853,9 @@ class Connection:
 
 
 	def __tofhir2_cmd(self, portID, slaveID, busID, chipID, regID, write, expect_reply, value):
+		return self.__tofhir2_cmd_ll(portID, slaveID, busID, chipID, regID, write, expect_reply, value)
+
+	def __tofhir2_cmd_ll(self, portID, slaveID, busID, chipID, regID, write, expect_reply, value):
 
 		l = len(value)
 		payload = bitarray(256)
