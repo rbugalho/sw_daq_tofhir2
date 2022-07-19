@@ -210,8 +210,10 @@ class Config:
 			for portID, slaveID, chipID in asicsConfig.keys():
 				ac = asicsConfig[(portID, slaveID, chipID)]
 				for channelID, cc in enumerate(ac.channelConfig):
-					cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)])
-
+					try:
+						cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)])
+					except KeyError:
+						pass
 
 		daqd.setAsicsConfig(asicsConfig)
 
