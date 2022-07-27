@@ -355,7 +355,8 @@ class Connection:
 		for portID, slaveID in self.getActiveFEBDs():
 			for chipID in range(8):
 				try:
-					self.__doAsicCommand(portID, slaveID, chipID, "wrGlobalCfg", value=gc)					
+					# Chip may not be present, try only a few times
+					self.__doAsicCommand(portID, slaveID, chipID, "wrGlobalCfg", value=gc, maxTries=5)					
 					for channelID in range(32):
 						self.__doAsicCommand(portID, slaveID, chipID, "wrChCfg", value=cc, channel=channelID)
 					
@@ -926,14 +927,16 @@ class Connection:
 	# @param command Command type to be sent. The list of possible keys for this parameter is hardcoded in this function
         # @param value The actual value to be transmitted to the ASIC if it applies to the command type   
         # @param channel If the command is destined to a specific channel, this parameter sets its ID. 	  
-	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None):
+	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None, maxTries=100):
 		nTry = 0
 		while True:
 			try:
 				return self.___doAsicCommand(portID, slaveID, chipID, command, value=value, channel=channel)
 			except tofhir2.ConfigurationError as e:
 				nTry = nTry + 1
-				if nTry >= 5:
+				if nTry > 5:
+					sleep(0.1)
+				if nTry >= maxTries:
 					raise e
 
 
