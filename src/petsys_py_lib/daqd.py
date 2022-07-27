@@ -288,6 +288,7 @@ class Connection:
 		self.disableEventGate()
 		self.disableCoincidenceTrigger()
 		self.disableAuxIO()
+		self.write_config_register_tgr(64, 0x2A0, 0x0)
 		self.__setAllBiasToZero()
 
 		# Check FEB/D board status
