@@ -36,6 +36,8 @@ set_target_properties(shm_raw_py PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_B
 
 configure_file("src/petsys_py_lib/__init__.py" "petsys/__init__.py" COPYONLY)
 configure_file("src/petsys_py_lib/tofhir2.py" "petsys/tofhir2.py" COPYONLY)
+configure_file("src/petsys_py_lib/tofhir2x.py" "petsys/tofhir2x.py" COPYONLY)
+configure_file("src/petsys_py_lib/tofhir2b.py" "petsys/tofhir2b.py" COPYONLY)
 configure_file("src/petsys_py_lib/daqd.py" "petsys/daqd.py" COPYONLY)
 configure_file("src/petsys_py_lib/bitarray_utils.py" "petsys/bitarray_utils.py" COPYONLY)
 configure_file("src/petsys_py_lib/config.py" "petsys/config.py" COPYONLY)

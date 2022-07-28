@@ -74,10 +74,24 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+
+	long nEvents0 = 0;
+	long nEventsL = 0;
+	long nEvents8 = 0;
+	long nEventsH = 0;
+	long wrongCoarseTime = 0;
+	long wrongChannelID = 0;
+	long totalDataFrames = 0;
+	long totalDataFramesLost = 0;
+
+	unsigned long prevT1 = 0;
+
 	long startOffset, endOffset;
+	long long startFrame;
+	long long endFrame;
 	float step1, step2;
 	RawDataFrame *tmpRawDataFrame = new RawDataFrame;
-	while(fscanf(indexFile, "%ld %ld %*lld %*lld %f %f\n", &startOffset, &endOffset, &step1, &step2) == 4) {
+	while(fscanf(indexFile, "%ld %ld %lld %lld %f %f\n", &startOffset, &endOffset, &startFrame, &endFrame, &step1, &step2) == 6) {
 		fseek(dataFile, startOffset, SEEK_SET);
 		
 		bool firstFrame = true;
@@ -105,6 +119,9 @@ int main(int argc, char *argv[])
 			int framesCompacted = firstFrame ? 0 : frameID - lastFrameID - 1;
 			sumDataFrames += framesCompacted;
 			sumDataFramesLost += last1FrameLost ? framesCompacted : 0;
+
+			if(!last1FrameLost) nEvents0 += framesCompacted;
+
 			lastFrameID = frameID;
 			last1FrameLost = frameLost;
 			
@@ -112,12 +129,24 @@ int main(int argc, char *argv[])
 			sumDataFramesLost += frameLost ? 1 : 0;
 			sumEvents += nEvents;
 
-			if(statsOnly) continue;
-			if(suppressEmpty && nEvents == 0) continue;
+			//if(statsOnly) continue;
+			//if(suppressEmpty && nEvents == 0) continue;
 			
 			
-			printf("%04d %016llx Size: %-4llu FrameID: %-20llu\n", 0, tmpRawDataFrame->data[0], tmpRawDataFrame->getFrameSize(), frameID);
-			printf("%04d %016llx nEvents: %20llu %4s\n", 1,  tmpRawDataFrame->data[1], tmpRawDataFrame->getNEvents(), frameLost ? "LOST" : "");
+//			printf("%04d %016llx Size: %-4llu FrameID: %-20llu\n", 0, tmpRawDataFrame->data[0], tmpRawDataFrame->getFrameSize(), frameID);
+//			printf("%04d %016llx nEvents: %20llu %4s\n", 1,  tmpRawDataFrame->data[1], tmpRawDataFrame->getNEvents(), frameLost ? "LOST" : "");
+
+			
+			if(!frameLost) {	
+				if(nEvents == 0) 
+					nEvents0 += 1;
+				else if (nEvents < 8) 
+					nEventsL += 1;
+				else if (nEvents == 8)
+					nEvents8 += 1;
+				else
+					nEventsH += 1;
+			}
 			
 			for (int i = 0; i < nEvents; i++) {
 
@@ -130,17 +159,31 @@ int main(int argc, char *argv[])
 				unsigned long t2Fine = tmpRawDataFrame->getEventWord(i).getT2Fine();
 				unsigned long qFine = tmpRawDataFrame->getEventWord(i).getQFine();
 				
-				
-				printf("%04d %016llx %016llx", 2+2*i,  tmpRawDataFrame->data[2+2*i+0], tmpRawDataFrame->data[2+2*i+1]);
-				printf(" ChannelID: (%02d %02d %02d %02d)", (channelID >> 16) % 32, (channelID >> 11) % 32, (channelID >> 5) % 64, (channelID % 32));
-				printf(" TacID: %d T1C: %4d T2C: %4d QC %4d T1F %4d T2F %4d QF %4d", tacID, t1Coarse, t2Coarse, qCoarse, t1Fine, t2Fine, qFine);
-				printf("\n");
+				if((channelID % 4) != 0) wrongChannelID += 1;
+				if(t1Coarse != 29) wrongCoarseTime += 1; 
+
+//				printf("%04d %016llx %016llx", 2+2*i,  tmpRawDataFrame->data[2+2*i+0], tmpRawDataFrame->data[2+2*i+1]);
+//				printf(" ChannelID: (%02d %02d %02d %02d)", (channelID >> 16) % 32, (channelID >> 11) % 32, (channelID >> 5) % 64, (channelID % 32));
+//				printf(" TacID: %d T1C: %4d T2C: %4d QC %4d T1F %4d T2F %4d QF %4d", tacID, t1Coarse, t2Coarse, qCoarse, t1Fine, t2Fine, qFine);
+//				printf("\n");
 			}
 			
 			
 		}
-		printf("STAT %llu %llu %llu\n", sumDataFrames, sumDataFramesLost, sumEvents);
+		
+		long long framesCompacted = endFrame - lastFrameID -1;
+		sumDataFrames += framesCompacted;
+		sumDataFramesLost += last1FrameLost ? framesCompacted : 0;
+		nEvents0 += last1FrameLost ? 0 : framesCompacted;
+		
+
+		printf("STAT0 %llu %llu %llu\n", sumDataFrames, sumDataFramesLost, sumEvents);
+		totalDataFrames += sumDataFrames;
+		totalDataFramesLost += sumDataFramesLost;
 	}
+	printf("STAT1 %ld frames %ld frames lost \n", totalDataFrames, totalDataFramesLost);
+	printf("STAT2 0: %ld L: %ld 8: %d H: %ld\n", nEvents0, nEventsL, nEvents8, nEventsH);
+	printf("STAT3 BAD CH: %ld BAD TCOARSE: %ld\n", wrongChannelID, wrongCoarseTime);
 	delete tmpRawDataFrame;
 	
 	return 0;

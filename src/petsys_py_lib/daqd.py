@@ -3,8 +3,8 @@
 ## @package daqd
 # Handles interaction with the system via daqd
 
+import sys
 import shm_raw
-import tofhir2
 import socket
 from random import randrange
 import struct
@@ -15,6 +15,8 @@ import math
 import subprocess
 from sys import stdout
 from copy import deepcopy
+
+from . import tofhir2, tofhir2x, tofhir2b
 
 MAX_PORTS = 32
 MAX_SLAVES = 32
@@ -38,6 +40,8 @@ class Connection:
 		shmName, s0, p1, s1 = self.__getSharedMemoryInfo()
 		self.__shmName = shmName
 		self.__shm = shm_raw.SHM_RAW(self.__shmName)
+
+		self.__asic_module = None
 
 		self.__activePorts = []
 		self.__activeFEBDs = {}
@@ -283,6 +287,43 @@ class Connection:
 		activePorts = self.getActivePorts()
 		print "INFO: active units on ports: ", (", ").join([str(x) for x in self.getActivePorts()])
 
+		system_mode = list(set([ self.read_config_register(p, s, 16, 0x0104) for p, s in self.getActiveFEBDs() ]))
+
+		if len(system_mode) > 1:
+			sys.stderr.write("Multiple system modes are not supported. Run set_system_mode to set all FEB/D to the correct system mode")
+			sys.exit(1)
+
+		system_mode = system_mode[0]
+
+		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 64, 0x0318, 0xFFFFFFFFFFFFFFFF)
+		if system_mode == 0x0002:
+			self.__asic_module = tofhir2x
+
+		elif (system_mode & 0x000F) == 0x0003:
+			self.__asic_module = tofhir2b
+
+			if (system_mode & 0x0010) == 0x0010:
+				# BTL FE CoB boards with TOFHiR 2B have unreliable communication with ASIC 0
+				for portID, slaveID in self.getActiveFEBDs():
+					febd_type = self.read_config_register(portID, slaveID, 16, 0x0022)
+
+					if febd_type == 0x0000:
+						# This is a FEB/D with adaptper and ports 0, 1 have TBs which are fine
+						asic_rx_enable = 0b10101111
+					else:
+						# Other boards which we assume have only BTL FE ports
+						asic_rx_enable = 0xAAAAAAAAAAAAAAAA
+
+					self.write_config_register(portID, slaveID, 64, 0x0318, asic_rx_enable)
+
+		else:
+			sys.stderr.write("ERROR: Unknown system mode 0x%04X\n" % system_mode)
+			sys.exit(1)
+				
+				
+			
+
+
 		# Disable everything
 		self.setTestPulseNone()
 		self.disableEventGate()
@@ -306,14 +347,6 @@ class Connection:
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0213, 0b11) 
 		sleep(0.1) # Wait for power to stabilize
 
-		# Enable ASIC receiver logic for ASICs
-		# WORKAROUND:
-		# TOFHiR 2B FE CoB boards have a PCB problem
-		# Communication with A0 is erratic
-		# Disable those ASICS: (3, 0) and (4, 0) on the FEB/D T2TB adapter
-		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 64, 0x0318, 0b10101111)
-
-
 		# Reset the ASICs configuration
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0201, 0b00)
 		for k in range(10):
@@ -331,7 +364,7 @@ class Connection:
 		sleep(0.2)
 		for portID, slaveID in self.getActiveFEBDs():
 			tdc_clk_div, ddr, tx_nlinks = self.__getAsicLinkConfiguration(portID, slaveID)
-			gctx = tofhir2.AsicGlobalConfigTX()
+			gctx = self.__asic_module.AsicGlobalConfigTX()
 			gctx.setValue("c_tx_mode", ddr and 0b1000 or 0b0000)
 			#gctx.setValue("c_tx_mode", 0x0)
 			gctx.setValue("c_tx_clps", 1023)
@@ -346,8 +379,8 @@ class Connection:
 		#
 		# Load default chip configuration
 		# 
-		gc = tofhir2.AsicGlobalConfig()
-		cc = tofhir2.AsicChannelConfig()
+		gc = self.__asic_module.AsicGlobalConfig()
+		cc = self.__asic_module.AsicChannelConfig()
 
 		# Check which ASICs react to the configuration
 		asicConfigOK = [ False for x in range(MAX_PORTS * MAX_SLAVES * MAX_CHIPS) ]
@@ -956,11 +989,11 @@ class Connection:
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
 
-			return status, tofhir2.AsicGlobalConfig(reply)
+			return status, self.__asic_module.AsicGlobalConfig(reply)
 
 		elif command == "rdGlobalCfg":
-			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, False, True, tofhir2.AsicGlobalConfig())
-			return status, tofhir2.AsicGlobalConfig(reply)
+			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, False, True, self.__asic_module.AsicGlobalConfig())
+			return status, self.__asic_module.AsicGlobalConfig(reply)
 
 		elif command == "wrChCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, True, True, value)
@@ -973,15 +1006,15 @@ class Connection:
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
 
-			return status, tofhir2.AsicGlobalConfig(reply)
+			return status, self.__asic_module.AsicGlobalConfig(reply)
 
 		elif command == "rdChCfg":
-			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, False, True, tofhir2.AsicChannelConfig())
-			return status, tofhir2.AsicGlobalConfig(reply)
+			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, False, True, self.__asic_module.AsicChannelConfig())
+			return status, self.__asic_module.AsicGlobalConfig(reply)
 		
 		elif command == "rdStatus":
-			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 34, False, True, tofhir2.AsicGlobalConfigStatus())
-			return status, tofhir2.AsicGlobalConfigStatus(reply)
+			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 34, False, True, self.__asic_module.AsicGlobalConfigStatus())
+			return status, self.__asic_module.AsicGlobalConfigStatus(reply)
 		
 		elif command == "efuse_load":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 35, True, False, bitarray(254))
@@ -1006,12 +1039,12 @@ class Connection:
 			for portID, slaveID, chipID in self.getActiveAsics():
 				
 					
-				ac = tofhir2.AsicConfig()
+				ac = self.__asic_module.AsicConfig()
 				status, value = self.__doAsicCommand(portID, slaveID, chipID, "rdGlobalCfg")
-				ac.globalConfig = tofhir2.AsicGlobalConfig(value)
+				ac.globalConfig = self.__asic_module.AsicGlobalConfig(value)
 				for n in range(len(ac.channelConfig)):
 					status, value = self.__doAsicCommand(portID, slaveID, chipID, "rdChCfg", channel=n)
-					ac.channelConfig[n] = tofhir2.AsicChannelConfig(value)
+					ac.channelConfig[n] = self.__asic_module.AsicChannelConfig(value)
 					
 				# Store the ASIC configuration
 				self.__asicConfigCache[(portID, slaveID, chipID)] = ac
