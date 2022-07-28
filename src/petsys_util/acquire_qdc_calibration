@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from petsys import daqd, config
+from petsys import daqd, config, tofhir2x, tofhir2b
 from copy import deepcopy
 import argparse
 import math
@@ -55,104 +55,116 @@ def main(argv):
 	channelStep = int(math.ceil(32.0/simultaneousChannels))
 
 
-	print "Triming QDC"
-	channel_trimmed = {}
-	for p,s,a,c in getActiveChannels(conn):
-		channel_trimmed[(p,s,a,c)] = False
+	print(asicsConfig.values()[0].__class__)
+	if len(asicsConfig) > 0 and isinstance(asicsConfig.values()[0], tofhir2b.AsicConfig):
+		# TOFHiR 2B needs the QDC to be trimmed
 
-
-	for qdc_trim in range(63,0,-1):
-		if False not in channel_trimmed.values():
-			# All channels have been trimmed
-			break
-
-
-		sys.stdout.write("Trim: %d\r" % qdc_trim)
-		sys.stdout.flush()
-
+		print "Triming QDC"
+		channel_trimmed = {}
 		for p,s,a,c in getActiveChannels(conn):
-			if not channel_trimmed[(p,s,a,c)]:
-				asicsConfig[(p,s,a)].channelConfig[c].setValue("cfg_a2_dc_trim", qdc_trim)
-
-		qdc_short = {}
-		for p,s,a,c,t in getActiveTACs(conn):
-			for n in range(nPhases):
-				qdc_short[(p,s,a,c,t,n)] = (0, 0)
-
-		qdc_long = deepcopy(qdc_short)
-
-		for firstChannel in range(0, channelStep):
-			activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
-			activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
-
-			# Enable triggering for active channels
-			cfg = deepcopy(asicsConfig)
-			for ac in cfg.values():
-				for channel in activeChannels:
-					ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
-			conn.setAsicsConfig(cfg)
-
-			for n in range(nPhases):
-				phase = float(n) / nPhases
-				for (qdc_store, integrationTime) in [(qdc_short, 1), (qdc_long, 511)]:
+			channel_trimmed[(p,s,a,c)] = False
 
 
-					t_start = time.time()
-					conn.set_test_pulse_febds(integrationTime, 1024, phase, False)
-					conn.synchronizeDataToConfig(True)
-
-					for k in range(1000):
-						df = conn.getDecodedDataFrame()
-
-						for channelID, tacID, t1coarse, t2coarse, qcoarse, t1fine, t2fine, qfine in df['events']:
-							c = (channelID >>  0) % 32
-							a = (channelID >>  5) % 64
-							s = (channelID >> 11) % 32
-							p = (channelID >> 16) % 32
-
-							count, total = qdc_store[(p,s,a,c,tacID,n)]
-							count += 1
-							total += qfine
-							qdc_store[(p,s,a,c,tacID,n)] = (count, total)
+		for qdc_trim in range(63,0,-1):
+			if False not in channel_trimmed.values():
+				# All channels have been trimmed
+				break
 
 
-					t_finish = time.time()
-					#print "Channel(s): %s Phase: %4.3f clk Length %d clk in %3.2f seconds " % (activeChannels_string, phase, integrationTime, t_finish - t_start)
+			sys.stdout.write("Trim: %d\r" % qdc_trim)
+			sys.stdout.flush()
 
+			for p,s,a,c in getActiveChannels(conn):
+				if not channel_trimmed[(p,s,a,c)]:
+					asicsConfig[(p,s,a)].channelConfig[c].setValue("cfg_a2_dc_trim", qdc_trim)
 
-		for p,s,a,c in getActiveChannels(conn):
-			trimmed_count = 0
-			for t in range(8):
+			qdc_short = {}
+			for p,s,a,c,t in getActiveTACs(conn):
 				for n in range(nPhases):
-					count_short, total_short = qdc_short[(p,s,a,c,t,n)]
-					count_long, total_long = qdc_long[(p,s,a,c,t,n)]
+					qdc_short[(p,s,a,c,t,n)] = (0, 0)
 
-					if (count_short < 10) or (count_long < 10):
-						# This TAC is probably dead
-						trimmed_count += 1
-						continue
+			qdc_long = deepcopy(qdc_short)
 
-					avg_short = float(total_short)/count_short
-					err_short = avg_short/math.sqrt(count_short)
+			for firstChannel in range(0, channelStep):
+				activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
+				activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
 
-					avg_long = float(total_long)/count_long
-					err_long = avg_long/math.sqrt(count_long)
+				# Enable triggering for active channels
+				cfg = deepcopy(asicsConfig)
+				for ac in cfg.values():
+					for channel in activeChannels:
+						ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
+				conn.setAsicsConfig(cfg)
 
-					if avg_long > avg_short:
-						trimmed_count += 1
-
-					#print(qdc_trim, p,s,a,c,t,n, trimmed_count, total_short, total_long, count_short, count_long, avg_short, avg_long, err_short, err_long)
-
-			if trimmed_count >= (8 * 2):
-				channel_trimmed[(p,s,a,c)] = True
+				for n in range(nPhases):
+					phase = float(n) / nPhases
+					for (qdc_store, integrationTime) in [(qdc_short, 1), (qdc_long, 511)]:
 
 
+						t_start = time.time()
+						conn.set_test_pulse_febds(integrationTime, 1024, phase, False)
+						conn.synchronizeDataToConfig(True)
 
-	if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
-		f = open(args.fileNamePrefix + '.trim', 'w')
-		for p,s,a,c in getActiveChannels(conn):
-			f.write("%d\t%d\t%d\t%d\t%d\n" % (p, s, a, c, asicsConfig[(p,s,a)].channelConfig[c].getValue("cfg_a2_dc_trim")))
-		f.close()
+						for k in range(1000):
+							df = conn.getDecodedDataFrame()
+
+							for channelID, tacID, t1coarse, t2coarse, qcoarse, t1fine, t2fine, qfine in df['events']:
+								c = (channelID >>  0) % 32
+								a = (channelID >>  5) % 64
+								s = (channelID >> 11) % 32
+								p = (channelID >> 16) % 32
+
+								count, total = qdc_store[(p,s,a,c,tacID,n)]
+								count += 1
+								total += qfine
+								qdc_store[(p,s,a,c,tacID,n)] = (count, total)
+
+
+						t_finish = time.time()
+						#print "Channel(s): %s Phase: %4.3f clk Length %d clk in %3.2f seconds " % (activeChannels_string, phase, integrationTime, t_finish - t_start)
+
+
+			for p,s,a,c in getActiveChannels(conn):
+				trimmed_count = 0
+				for t in range(8):
+					for n in range(nPhases):
+						count_short, total_short = qdc_short[(p,s,a,c,t,n)]
+						count_long, total_long = qdc_long[(p,s,a,c,t,n)]
+
+						if (count_short < 10) or (count_long < 10):
+							# This TAC is probably dead
+							trimmed_count += 1
+							continue
+
+						avg_short = float(total_short)/count_short
+						err_short = avg_short/math.sqrt(count_short)
+
+						avg_long = float(total_long)/count_long
+						err_long = avg_long/math.sqrt(count_long)
+
+						if avg_long > avg_short:
+							trimmed_count += 1
+
+						#print(qdc_trim, p,s,a,c,t,n, trimmed_count, total_short, total_long, count_short, count_long, avg_short, avg_long, err_short, err_long)
+
+				if trimmed_count >= (8 * 2):
+					channel_trimmed[(p,s,a,c)] = True
+
+
+
+		if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
+			f = open(args.fileNamePrefix + '.trim', 'w')
+			for p,s,a,c in getActiveChannels(conn):
+				f.write("%d\t%d\t%d\t%d\t%d\n" % (p, s, a, c, asicsConfig[(p,s,a)].channelConfig[c].getValue("cfg_a2_dc_trim")))
+			f.close()
+
+	else:
+		# For TOFHiR 2X just write -1 as the trim value
+		if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
+			f = open(args.fileNamePrefix + '.trim', 'w')
+			for p,s,a,c in getActiveChannels(conn):
+				f.write("%d\t%d\t%d\t%d\t%d\n" % (p, s, a, c, 0))
+			f.close()
 
 
 	# Main data acquisition
