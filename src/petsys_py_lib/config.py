@@ -328,23 +328,13 @@ def parseAsicParameters(configParser):
 		return {}
 	
 	t = {}
-	gk = set(tofhir2.AsicGlobalConfig().getKeys())
-	ck = set(tofhir2.AsicChannelConfig().getKeys())
 	for key, value in configParser.items("asic_parameters"):
 		if key[0:7] == "global.":
 			k = key[7:]
-			if k not in gk:
-				print "Invalid ASIC parameter: '%s'" % key
-				exit(1)
-			else:
-				t[("global", k)] = toInt(value)
+			t[("global", k)] = toInt(value)
 		elif key[0:8] == "channel.":
 			k = key[8:]
-			if k not in ck:
-				print "Invalid ASIC parameter: '%s'" % key
-				exit(1)
-			else:
-				t[("channel", k)] = toInt(value)
+			t[("channel", k)] = toInt(value)
 		else:
 			print "Invalid ASIC parameter: '%s'" % key
 			exit(1)
