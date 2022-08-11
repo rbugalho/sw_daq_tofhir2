@@ -46,10 +46,9 @@ for ac in asicsConfig.values():
 simultaneousChannels = 32
 
 # Clamp down simulatenous channels due to system limitations
-# 126/16 -- GbE interface: 126 events/frame with FEB/D, 16 ASICs per FEB/D
-# 1024/80 -- ASIC TX: 1024 clock/frame (x1 SDR), 80 bits per event
-simultaneousChannels = min([simultaneousChannels, 63/16, 1024/80])
-simultaneousChannels = 15
+# 62/(12*2) -- GbE interface: 63 events/frame with unit, 12 ports per unit, 2 ASIC per port
+# 1024/180 -- ASIC TX: 1024 clock/frame (x1 SDR), 160 bits per event (TOFHiR 2B bug)
+simultaneousChannels = min([simultaneousChannels, 62/(12*2), 1024/180])
 
 channelStep = int(math.ceil(32.0/simultaneousChannels))
 
