@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from petsys import daqd, config
+from copy import deepcopy
+import argparse
+import math
+import time
+
+
+def main():
+	parser = argparse.ArgumentParser(description='Set system mode')
+	parser.add_argument("--mode", type=str, required=True, choices=[ "tofhir2x", "tofhir2b", "tofhir2b_bad_fe" ], help="System mode")
+	args = parser.parse_args()
+
+	conn = daqd.Connection()
+
+	if args.mode == "tofhir2x":
+		MODE = 0x0002
+	elif args.mode == "tofhir2b":
+		MODE = 0x0003
+	elif args.mode == "tofhir2b_bad_fe":
+		MODE = 0x0013
+	
+	for portID, slaveID in conn.getActiveFEBDs(): 
+		conn.write_config_register(portID, slaveID, 16, 0x0104, MODE)
+	
+	
+
+if __name__ == "__main__":
+	main()
