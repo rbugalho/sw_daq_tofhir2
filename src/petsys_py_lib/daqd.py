@@ -321,8 +321,6 @@ class Connection:
 			sys.exit(1)
 				
 				
-			
-
 
 		# Disable everything
 		self.setTestPulseNone()
@@ -365,8 +363,26 @@ class Connection:
 		for portID, slaveID in self.getActiveFEBDs():
 			tdc_clk_div, ddr, tx_nlinks = self.__getAsicLinkConfiguration(portID, slaveID)
 			gctx = self.__asic_module.AsicGlobalConfigTX()
-			gctx.setValue("c_tx_mode", ddr and 0b1000 or 0b0000)
-			#gctx.setValue("c_tx_mode", 0x0)
+			c_tx_mode = 0b0000
+
+			# Select DDR mode
+			if ddr:
+				c_tx_mode |= 0b1000
+			else:
+				c_tx_mode |= 0b0000
+
+			# Select primary/secondary TX
+			if system_mode & 0x300 == 0x000:
+				c_tx_mode |= 0b0000
+			elif system_mode & 0x300 == 0x100:
+				c_tx_mode |= 0b0100
+
+			gctx.setValue("c_tx_mode", c_tx_mode)
+
+			# Select dual TX (for TOFHiR 2B onwards only)
+			if (system_mode & 0xF >= 0x3) and (system_mode & 0x300 == 0x200):
+				gctx.setValue("c_dual", 1)
+
 			gctx.setValue("c_tx_clps", 1023)
 			
 			
