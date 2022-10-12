@@ -210,7 +210,7 @@ class AsicChannelConfig(AbstractConfig):
 			("c_max_q",		28,	20,	0),
 			("c_deadtime",		37,	29,	1),
 			("c_count",		41,	38,	0x0),
-			("c_tac_max_age",	46,	42,	30),
+			("c_tac_max_age",	46,	42,	29),
 			("c_tac_reset_len",	49,	47,	0b100),
 			("c_wctrl_gate",	51,	51,	0b1),
 			("c_branch_en",		53,	52,	0b11),
