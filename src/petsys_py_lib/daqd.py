@@ -1476,6 +1476,25 @@ class Connection:
 		return self.__synchronizeDataToConfig(clearFrames)
 
 	def __synchronizeDataToConfig(self, clearFrames=True):
+
+		targetFrameID = self.getCurrentTimeTag() / 1024
+
+		template1 = "@HH"
+		template2 = "@Q"
+		n = struct.calcsize(template1) + struct.calcsize(template2)
+		data = struct.pack(template1, 0x13, n) + struct.pack(template2, targetFrameID)
+		self.__socket.send(data)
+		data = self.__socket.recv(4)
+		assert len(data) == 4
+
+		# Set the read pointer to write pointer, in order to consume all available frames in buffer
+		wrPointer, rdPointer = self.__getDataFrameWriteReadPointer()
+		self.__setDataFrameReadPointer(wrPointer)
+		return
+
+		# WARNING
+		#: Don't actually remove code below until the new synchronization scheme has been better tested
+
 		frameLength = 1024 / self.__systemFrequency
 
 		# Check ASIC link status at start of acquisition

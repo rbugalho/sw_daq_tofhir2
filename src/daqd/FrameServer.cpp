@@ -53,6 +53,7 @@ FrameServer::FrameServer(int nFEB, int *feTypeMap, int debugLevel)
 	pthread_cond_init(&condReplyQueue, NULL);
 	die = true;
 	acquisitionMode = 0;
+	minimumFrameID = 0;
 	hasWorker = false;
 	
 	printf("Size of frame is %u\n", sizeof(RawDataFrame));
@@ -96,6 +97,7 @@ void FrameServer::startAcquisition(int mode)
 	dataFrameWritePointer = 0;
 	dataFrameReadPointer = 0;
 	acquisitionMode = mode;
+	minimumFrameID = 0;
 	pthread_cond_signal(&condCleanDataFrame);
 	pthread_mutex_unlock(&lock);
 }
@@ -217,3 +219,9 @@ int FrameServer::setGateEnable(unsigned mode)
 	return -1;
 }
 
+int FrameServer::setMinimumFrameID(unsigned long long frameID)
+{
+	minimumFrameID = frameID;
+	printf("DEBUG set min frameID to %016llu\n", minimumFrameID);
+	return 0;
+}

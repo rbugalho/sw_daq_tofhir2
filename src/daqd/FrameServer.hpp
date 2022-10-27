@@ -45,6 +45,7 @@ public:
 	virtual int setCoincidenceTrigger(CoincidenceTriggerConfig *config);
 	virtual int setIdleTimeCalculation(unsigned mode);
 	virtual int setGateEnable(unsigned mode);
+	virtual int setMinimumFrameID(unsigned long long frameID);
 
 	
 private: 
@@ -58,6 +59,8 @@ protected:
 	int debugLevel;
 	
 	int8_t *feTypeMap;
+
+	unsigned long long minimumFrameID;
 	
 	int dataFrameSharedMemory_fd;
 	RawDataFrame *dataFrameSharedMemory;
