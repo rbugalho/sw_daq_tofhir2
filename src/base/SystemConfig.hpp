@@ -63,7 +63,7 @@ namespace PETSYS {
 		
 
 		static SystemConfig *fromFile(const char *configFileName);
-		static SystemConfig *fromFile(const char *configFileName, uint64_t mask);
+	  static SystemConfig *fromFile(const char *configFileName, uint64_t mask, int att = 4);
 		
 		inline bool useTDCCalibration() { return hasTDCCalibration; };
 		inline bool useQDCCalibration() { return hasQDCCalibration; };

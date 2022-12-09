@@ -331,6 +331,7 @@ void displayHelp(char * program)
         fprintf(stderr,  "  --refChannel \t Reference channel\n");
         fprintf(stderr,  "  --pedestals \t Use pedestals in energy reconstruction\n");
 	fprintf(stderr,  "  --daqv1 \t\t Parse DAQv1 data.\n");
+	fprintf(stderr,  "  --att  \t\t  Attenuator gain setting. Default: 4\n");
 	fprintf(stderr,  "  --help \t\t Show this help message and exit \n");
 	
 };
@@ -353,6 +354,7 @@ int main(int argc, char *argv[])
         int refChannel = -1;
         bool pedestals;
 	int parser_type = 0;
+	int att = 4;
 
         static struct option longOptions[] = {
                 { "help", no_argument, 0, 0 },
@@ -365,6 +367,7 @@ int main(int argc, char *argv[])
 		{ "refChannel", required_argument, 0, 0 },
 		{ "pedestals", no_argument, 0, 0 },
 		{ "daqv1", no_argument, 0, 0 },
+		{ "att", required_argument, 0, 0 }
         };
 
         while(true) {
@@ -392,6 +395,7 @@ int main(int argc, char *argv[])
                         case 7:         refChannel = boost::lexical_cast<int>(optarg); break;
                         case 8:         pedestals = true; break;
 			case 9:		parser_type = 1; break;
+			case 10:        att = atoi(optarg); break;
 
 			default:	displayUsage(argv[0]); exit(1);
 			}
@@ -434,7 +438,7 @@ int main(int argc, char *argv[])
 
 
 	unsigned long long mask = SystemConfig::LOAD_ALL;
-	SystemConfig *config = SystemConfig::fromFile(configFileName, mask);
+	SystemConfig *config = SystemConfig::fromFile(configFileName, mask, att);
 	
 	DataFileWriter *dataFileWriter = new DataFileWriter(outputFileName, reader->getFrequency(), fileType, hitLimitToWrite, eventFractionToWrite, coincidence, refChannel, pedestalFile);
 	

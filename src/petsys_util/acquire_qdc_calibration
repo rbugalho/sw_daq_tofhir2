@@ -19,7 +19,10 @@ def main(argv):
 	parser = argparse.ArgumentParser(description='Acquire data for QDC calibration')
 	parser.add_argument("--config", type=str, required=True, help="Configuration file")
 	parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
+        parser.add_argument("--att", type=int, required=True, choices=range(0, 8), help="Attenuator gain setting")
 	args = parser.parse_args()
+
+        fileNamePrefix = args.fileNamePrefix + ( "%d"%args.att )
 
 	systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
 	conn = daqd.Connection()
@@ -29,8 +32,8 @@ def main(argv):
 	nPhases = 3
 	nLengths = 128
 	lengthStep = 1
-	if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
-		f = open(args.fileNamePrefix + '.bins', 'w')
+	if not os.path.exists(fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
+		f = open(fileNamePrefix + '.bins', 'w')
 		f.write("%d\t%f\t%f\n" % (nPhases*nLengths/lengthStep, 0, nLengths))
 		f.close()
 
@@ -44,8 +47,9 @@ def main(argv):
 			#cc.setValue("cfg_a2_attenuator_dc_cancel_en", 0)
 			cc.setValue("c_min_q", 0)
 			cc.setValue("c_max_q", 511)
+                        cc.setValue("cfg_a2_attenuator_gain", args.att)
 
-	# Clamp down simulatenous channels due to system limitations
+        # Clamp down simulatenous channels due to system limitations
 	# 62/(12*2) -- GbE interface: 63 events/frame with unit, 12 ports per unit, 2 ASIC per port
 	# 1024/180 -- ASIC TX: 1024 clock/frame (x1 SDR), 160 bits per event (TOFHiR 2B bug)
 	simultaneousChannels = min([62/(12*2), 1024/180])
@@ -151,23 +155,23 @@ def main(argv):
 
 
 
-		if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
-			f = open(args.fileNamePrefix + '.trim', 'w')
+		if not os.path.exists(fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
+			f = open(fileNamePrefix + '.trim', 'w')
 			for p,s,a,c in getActiveChannels(conn):
 				f.write("%d\t%d\t%d\t%d\t%d\n" % (p, s, a, c, asicsConfig[(p,s,a)].channelConfig[c].getValue("cfg_a2_dc_trim")))
 			f.close()
 
 	else:
 		# For TOFHiR 2X just write -1 as the trim value
-		if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
-			f = open(args.fileNamePrefix + '.trim', 'w')
+		if not os.path.exists(fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
+			f = open(fileNamePrefix + '.trim', 'w')
 			for p,s,a,c in getActiveChannels(conn):
 				f.write("%d\t%d\t%d\t%d\t%d\n" % (p, s, a, c, 0))
 			f.close()
 
 
 	# Main data acquisition
-	conn.openRawAcquisition(args.fileNamePrefix, calMode=True)
+	conn.openRawAcquisition(fileNamePrefix, calMode=True)
 	for firstChannel in range(0, channelStep):
 		activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
 		activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])

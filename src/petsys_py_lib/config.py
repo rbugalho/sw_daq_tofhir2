@@ -147,7 +147,7 @@ class Config:
 					for cc in ac.channelConfig:
 						cc.setValue(key, value)
 
-	def loadToHardware(self, daqd, bias_enable=APPLY_BIAS_OFF, hw_trigger_enable=False, qdc_mode = "qdc"):
+	def loadToHardware(self, daqd, bias_enable=APPLY_BIAS_OFF, hw_trigger_enable=False, qdc_mode = "qdc", att = 4):
 		#
 		# Apply bias voltage settings
 		# 
@@ -211,7 +211,7 @@ class Config:
 				ac = asicsConfig[(portID, slaveID, chipID)]
 				for channelID, cc in enumerate(ac.channelConfig):
 					try:
-						cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)])
+						cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)][att])
 					except KeyError:
 						pass
 
@@ -451,16 +451,20 @@ def readQDCModeTable(fn):
 	return c
 
 def readQDCTrimTable(fn):
-	f = open(fn)
-	c = {}
-        ln = 0
-	for l in f:
-                ln += 1
-		l = normalizeAndSplit(l)
-		if l == ['']: continue
-		portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
-		c[(portID, slaveID, chipID, channelID)] =  trim
-	f.close()
+        for att in range(8):
+                if os.path.exists(fn % att):
+	                f = open(fn % att)
+	                c = {}
+                        ln = 0
+	                for l in f:
+                                ln += 1
+		                l = normalizeAndSplit(l)
+		                if l == ['']: continue
+		                portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
+                                if not c.has_key((portID, slaveID, chipID, channelID)):
+                                   c[(portID, slaveID, chipID, channelID)] = {}
+		                c[(portID, slaveID, chipID, channelID)][att] =  trim
+	                f.close()
 	return c
 
 

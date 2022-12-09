@@ -33,13 +33,14 @@ static void replace_variables(char *fn, char *entry, char *cdir)
 	
 }
 
-SystemConfig *SystemConfig::fromFile(const char *configFileName, uint64_t mask)
+SystemConfig *SystemConfig::fromFile(const char *configFileName, uint64_t mask, int att)
 {
 	char *path = new char[PATH_MAX];
 	strcpy(path, configFileName);
 	char *cdir = dirname(path);
 	
 	char *fn = new char[PATH_MAX];
+	char *fn2 = new char[PATH_MAX];
 	
 	dictionary * configFile = iniparser_load(configFileName);
 	SystemConfig *config = new SystemConfig();
@@ -66,7 +67,8 @@ SystemConfig *SystemConfig::fromFile(const char *configFileName, uint64_t mask)
 			exit(1);
 		}
 		replace_variables(fn, entry, cdir);
-		loadQDCCalibration(config, fn);
+		sprintf(fn2,fn,att);
+		loadQDCCalibration(config, fn2);
 		config->hasQDCCalibration = true;
 
 		entry = iniparser_getstring(configFile, "main:energy_calibration_table", NULL);
