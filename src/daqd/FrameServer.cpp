@@ -222,6 +222,5 @@ int FrameServer::setGateEnable(unsigned mode)
 int FrameServer::setMinimumFrameID(unsigned long long frameID)
 {
 	minimumFrameID = frameID;
-	printf("DEBUG set min frameID to %016llu\n", minimumFrameID);
 	return 0;
 }
