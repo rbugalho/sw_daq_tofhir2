@@ -977,15 +977,13 @@ class Connection:
 	# @param command Command type to be sent. The list of possible keys for this parameter is hardcoded in this function
         # @param value The actual value to be transmitted to the ASIC if it applies to the command type   
         # @param channel If the command is destined to a specific channel, this parameter sets its ID. 	  
-	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None, maxTries=100):
+	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None, maxTries=10):
 		nTry = 0
 		while True:
 			try:
 				return self.___doAsicCommand(portID, slaveID, chipID, command, value=value, channel=channel)
 			except tofhir2.ConfigurationError as e:
 				nTry = nTry + 1
-				if nTry > 5:
-					sleep(0.1)
 				if nTry >= maxTries:
 					raise e
 
