@@ -994,11 +994,7 @@ class Connection:
 		
 		if command == "wrGlobalCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, True, True, value)
-			# Check write with readback twice
-			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
-			if readValue !=  value:
-				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
-
+			# Check write with readback
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
@@ -1011,11 +1007,7 @@ class Connection:
 
 		elif command == "wrChCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, True, True, value)
-			# Check write with readback twice
-			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
-			if readValue !=  value:
-				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
-
+			# Check write with readback
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
