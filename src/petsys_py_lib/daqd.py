@@ -316,6 +316,11 @@ class Connection:
 
 					self.write_config_register(portID, slaveID, 64, 0x0318, asic_rx_enable)
 
+		elif (system_mode & 0x000F) == 0x0004:
+			# TOFHiR 2C
+			# Uses the same configuration as tofhir2b
+			self.__asic_module = tofhir2b
+
 		else:
 			sys.stderr.write("ERROR: Unknown system mode 0x%04X\n" % system_mode)
 			sys.exit(1)
