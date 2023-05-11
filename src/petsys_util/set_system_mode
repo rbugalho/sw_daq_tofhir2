@@ -10,7 +10,7 @@ import time
 
 def main():
 	parser = argparse.ArgumentParser(description='Set system mode')
-	parser.add_argument("--mode", type=str, required=True, choices=[ "tofhir2x", "tofhir2b", "tofhir2b_bad_fe" ], help="System mode")
+	parser.add_argument("--mode", type=str, required=True, choices=[ "tofhir2x", "tofhir2b", "tofhir2b_bad_fe", "tofhir2c" ], help="System mode")
 	parser.add_argument("--tx", type=str, default="tx0", choices=["tx0", "tx1", "dual"], help="Primary TX link")
 	args = parser.parse_args()
 
@@ -22,6 +22,8 @@ def main():
 		MODE = 0x0003
 	elif args.mode == "tofhir2b_bad_fe":
 		MODE = 0x0013
+	elif args.mode == "tofhir2c":
+		MODE = 0x0004
 
 	if args.tx == "tx0":
 		MODE |= 0x000

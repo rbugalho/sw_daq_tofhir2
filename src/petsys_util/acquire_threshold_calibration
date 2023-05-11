@@ -154,12 +154,19 @@ for thresholdIndex, thresholdName, baselineName in thresholdList:
 			s = next_read_start_time - time()
 			if s > 0: sleep(s)
 			next_read_start_time = time() + T + 1E-3
-			for portID, slaveID, chipID, channelID in activeChannels:
-				# Write out fraction of discriminator active time
-				v = daqd.read_mem_ctrl(portID, slaveID, 5, 8, 24, 32*chipID + channelID, 1)
-				v = v[0]
-				v = v / COUNT_MAX
-				outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
+			
+			for portID, slaveID, chipID in activeAsics:
+				vv = daqd.read_mem_ctrl(portID, slaveID, 5, 8, 24, 32*chipID, 32)
+                                for channelID, v in enumerate(vv):
+					v = v / COUNT_MAX
+					outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
+					
+			#for portID, slaveID, chipID, channelID in activeChannels:
+				#Write out fraction of discriminator active time
+				#v = daqd.read_mem_ctrl(portID, slaveID, 5, 8, 24, 32*chipID + channelID, 1)
+				#v = v[0]
+				#v = v / COUNT_MAX
+				#outFile.write("%d\t%d\t%d\t%d\t%s\t%d\t%f\n" % (portID, slaveID, chipID, channelID, thresholdName, thresholdValue, v))
 
 		stdout.write(".")
 		stdout.flush()

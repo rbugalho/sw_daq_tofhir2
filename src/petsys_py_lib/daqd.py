@@ -316,6 +316,11 @@ class Connection:
 
 					self.write_config_register(portID, slaveID, 64, 0x0318, asic_rx_enable)
 
+		elif (system_mode & 0x000F) == 0x0004:
+			# TOFHiR 2C
+			# Uses the same configuration as tofhir2b
+			self.__asic_module = tofhir2b
+
 		else:
 			sys.stderr.write("ERROR: Unknown system mode 0x%04X\n" % system_mode)
 			sys.exit(1)
@@ -977,15 +982,13 @@ class Connection:
 	# @param command Command type to be sent. The list of possible keys for this parameter is hardcoded in this function
         # @param value The actual value to be transmitted to the ASIC if it applies to the command type   
         # @param channel If the command is destined to a specific channel, this parameter sets its ID. 	  
-	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None, maxTries=100):
+	def __doAsicCommand(self, portID, slaveID, chipID, command, value=None, channel=None, maxTries=10):
 		nTry = 0
 		while True:
 			try:
 				return self.___doAsicCommand(portID, slaveID, chipID, command, value=value, channel=channel)
 			except tofhir2.ConfigurationError as e:
 				nTry = nTry + 1
-				if nTry > 5:
-					sleep(0.1)
 				if nTry >= maxTries:
 					raise e
 
@@ -996,11 +999,7 @@ class Connection:
 		
 		if command == "wrGlobalCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, 32, True, True, value)
-			# Check write with readback twice
-			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
-			if readValue !=  value:
-				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
-
+			# Check write with readback
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdGlobalCfg")
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
@@ -1013,11 +1012,7 @@ class Connection:
 
 		elif command == "wrChCfg":
 			status, reply = self.__tofhir2_cmd(portID, slaveID, busID, lChipID, channel, True, True, value)
-			# Check write with readback twice
-			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
-			if readValue !=  value:
-				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
-
+			# Check write with readback
 			readStatus, readValue = self.__doAsicCommand(portID, slaveID, asicID, "rdChCfg", channel=channel)
 			if readValue !=  value:
 				raise tofhir2.ConfigurationErrorBadRead(portID, slaveID, asicID, value, readValue)
