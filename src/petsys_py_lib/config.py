@@ -211,7 +211,7 @@ class Config:
 				ac = asicsConfig[(portID, slaveID, chipID)]
 				for channelID, cc in enumerate(ac.channelConfig):
 					try:
-						cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)][att])
+						cc.setValue("cfg_a2_dc_trim", self.__QDCTrimTable[(portID, slaveID, chipID, channelID)])
 					except KeyError:
 						pass
 
@@ -290,9 +290,12 @@ class Config:
 	def getAsicChannelQDCMode(self, key):
                 return self.__asicChannelQDCModeTable[key]
 			
-	def mapAsicChannelThresholdToDAC(self, key, vth_str, value):
+	def mapAsicChannelThresholdToDAC(self, key, vth_str, value, disc_range=-1):
 		vth_t1, vth_t2, vth_e = self.__asicChannelThresholdCalibrationTable[key]
 		tmp = { "vth_t1" : vth_t1, "vth_t2" : vth_t2, "vth_e" : vth_e }
+                def_range = { "vth_t1" : 1, "vth_t2" : 0, "vth_e" : 0 }
+                if disc_range > -1:
+                        return int( tmp[vth_str]*(def_range[vth_str]+1)/(disc_range+1) + value)
 		return int( tmp[vth_str] + value)
                 
 	def mapALDOVoltageToDAC(self, (portID, slaveID, chipID), bd, ov):
@@ -463,7 +466,7 @@ def readQDCTrimTable(fn):
 		                portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
                                 if not c.has_key((portID, slaveID, chipID, channelID)):
                                    c[(portID, slaveID, chipID, channelID)] = {}
-		                c[(portID, slaveID, chipID, channelID)][att] =  trim
+		                c[(portID, slaveID, chipID, channelID)] =  trim
 	                f.close()
 	return c
 
