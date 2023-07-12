@@ -226,7 +226,7 @@ void SystemConfig::loadTDCCalibration(SystemConfig *config, const char *fn)
 		char bStr;
 		float t0, a0, a1, a2;
 		
-		if(sscanf(line, "%d\t%u\t%u\t%u\t%u\t%c\t%f\t%f\t%f\t%f\n", 
+		if(sscanf(line, "%d\t%u\t%u\t%u\t%u\t%c\t%f\t%f\t%f\t%f",
 			&portID, &slaveID, &chipID, &channelID, &tacID, &bStr,
 			&t0, &a0, &a1, &a2) != 10) continue;
 		
@@ -262,7 +262,7 @@ void SystemConfig::loadQDCCalibration(SystemConfig *config, const char *fn)
 		int trim;
 		float p0, p1, p2, p3, p4, p5, p6, p7, p8, p9;
 		
-		if(sscanf(line, "%d\t%u\t%u\t%u\t%u\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",
+		if(sscanf(line, "%d\t%u\t%u\t%u\t%u\t%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f",
 			&portID, &slaveID, &chipID, &channelID, &tacID,
 			&trim,
 			&p0, &p1, &p2, &p3, &p4, &p5, &p6, &p7, &p8, &p9) != 16) continue;

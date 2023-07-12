@@ -89,6 +89,7 @@ struct CalibrationEntry {
 	float xMax;
 	float xMax100;
 	int trim;
+	float sigma;
 	bool valid;
 };
 
@@ -462,6 +463,7 @@ void calibrateAsic(
 		entry.xMin = xMin;
 		entry.xMax = xMax;
 		entry.xMax100 = xMax;
+		entry.sigma = 0;
 		entry.valid = false;
 
 		
@@ -610,6 +612,7 @@ void calibrateAsic(
 			if(fit == NULL) continue;
 				
 			float sigma = fit->GetParameter(2);
+			entry.sigma = sigma;
 			float sigmaError = fit->GetParError(2);
 			gResolution->SetPoint(gResolutionNPoints, channelID + 0.125*tacID, sigma);
 			gResolution->SetPointError(gResolutionNPoints, 0, sigmaError);
@@ -765,7 +768,7 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
                 exit(1);
 	}
 
-	fprintf(f, "# portID\tslaveID\tchipID\tchannelID\ttacID\ttrim\tp0\tp1\tp2\tp3\tp4\tp5\tp6\tp7\tp8\n");
+	fprintf(f, "# portID\tslaveID\tchipID\tchannelID\ttacID\ttrim\tp0\tp1\tp2\tp3\tp4\tp5\tp6\tp7\tp8\tsigma\n");
 
 	for(unsigned long gid = 0; gid < MAX_N_QAC; gid++) {
 		CalibrationEntry &entry = calibrationTable[gid];
@@ -776,10 +779,11 @@ void writeCalibrationTable(CalibrationEntry *calibrationTable, const char *outpu
 		unsigned slaveID = (gid >> 14) % 32;
 		unsigned portID = (gid >> 19) % 32;
 	
-		fprintf(f, "%d\t%d\t%d\t%d\t%d\t%d\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\n",
+		fprintf(f, "%d\t%d\t%d\t%d\t%d\t%d\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\t%8.7e\n",
 			portID, slaveID, chipID, channelID, tacID,
 			entry.trim,
-			entry.p0, entry.p1, entry.p2, entry.p3, entry.p4, entry.p5, entry.p6, entry.p7, entry.p8, entry.p9
+			entry.p0, entry.p1, entry.p2, entry.p3, entry.p4, entry.p5, entry.p6, entry.p7, entry.p8, entry.p9,
+			entry.sigma
 		);
 	}
 	fclose(f);
