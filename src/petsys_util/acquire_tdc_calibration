@@ -11,6 +11,9 @@ import os.path
 parser = argparse.ArgumentParser(description='Acquire data for TDC calibration')
 parser.add_argument("--config", type=str, required=True, help="Configuration file")
 parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
+parser.add_argument("--nbins", type=int, default=165, help="Number of points used for calibration")
+parser.add_argument("--chskip", type=int, default=1, help="Step for channels")
+
 args = parser.parse_args()
 
 systemConfig = config.ConfigFromFile(args.config, loadMask=0)
@@ -24,7 +27,7 @@ daqd.openRawAcquisition(args.fileNamePrefix, calMode=True)
 ## Phase range: 0 to 8 clocks in 129 steps
 phaseMin = 0.0
 phaseMax = 8.0
-nBins = 165
+nBins = args.nbins
 
 if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
 	binParameterFile = open(args.fileNamePrefix + ".bins", "w")
@@ -50,7 +53,7 @@ simultaneousChannels = min([50/(2*10), 1024/180])
 
 channelStep = int(math.ceil(32.0/simultaneousChannels))
 
-for firstChannel in range(0, channelStep):
+for firstChannel in range(0, channelStep, args.chskip):
 	activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
 	activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
 	# Enable triggering for active channels

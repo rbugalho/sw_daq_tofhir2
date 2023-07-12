@@ -19,6 +19,8 @@ def main(argv):
 	parser = argparse.ArgumentParser(description='Acquire data for QDC calibration')
 	parser.add_argument("--config", type=str, required=True, help="Configuration file")
 	parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
+	parser.add_argument("--nlengths", type=int, default=128, help="Number of points used for calibration")
+	parser.add_argument("--chskip", type=int, default=1, help="Step for channels")
 	args = parser.parse_args()
 
 	systemConfig = config.ConfigFromFile(args.config, loadMask=0x0)
@@ -27,7 +29,7 @@ def main(argv):
 	systemConfig.loadToHardware(conn, bias_enable=config.APPLY_BIAS_OFF, qdc_mode="qdc")
 
 	nPhases = 3
-	nLengths = 128
+	nLengths = args.nlengths
 	lengthStep = 1
 	if not os.path.exists(args.fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
 		f = open(args.fileNamePrefix + '.bins', 'w')
