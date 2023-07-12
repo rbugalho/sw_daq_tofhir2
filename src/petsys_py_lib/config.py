@@ -147,7 +147,7 @@ class Config:
 					for cc in ac.channelConfig:
 						cc.setValue(key, value)
 
-	def loadToHardware(self, daqd, bias_enable=APPLY_BIAS_OFF, hw_trigger_enable=False, qdc_mode = "qdc"):
+	def loadToHardware(self, daqd, bias_enable=APPLY_BIAS_OFF, hw_trigger_enable=False, qdc_mode = "qdc", att = 4):
 		#
 		# Apply bias voltage settings
 		# 
@@ -290,9 +290,12 @@ class Config:
 	def getAsicChannelQDCMode(self, key):
                 return self.__asicChannelQDCModeTable[key]
 			
-	def mapAsicChannelThresholdToDAC(self, key, vth_str, value):
+	def mapAsicChannelThresholdToDAC(self, key, vth_str, value, disc_range=-1):
 		vth_t1, vth_t2, vth_e = self.__asicChannelThresholdCalibrationTable[key]
 		tmp = { "vth_t1" : vth_t1, "vth_t2" : vth_t2, "vth_e" : vth_e }
+                def_range = { "vth_t1" : 1, "vth_t2" : 0, "vth_e" : 0 }
+                if disc_range > -1:
+                        return int( tmp[vth_str]*(def_range[vth_str]+1)/(disc_range+1) + value)
 		return int( tmp[vth_str] + value)
                 
 	def mapALDOVoltageToDAC(self, (portID, slaveID, chipID), bd, ov):
@@ -451,16 +454,20 @@ def readQDCModeTable(fn):
 	return c
 
 def readQDCTrimTable(fn):
-	f = open(fn)
-	c = {}
-        ln = 0
-	for l in f:
-                ln += 1
-		l = normalizeAndSplit(l)
-		if l == ['']: continue
-		portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
-		c[(portID, slaveID, chipID, channelID)] =  trim
-	f.close()
+        for att in range(8):
+                if os.path.exists(fn % att):
+	                f = open(fn % att)
+	                c = {}
+                        ln = 0
+	                for l in f:
+                                ln += 1
+		                l = normalizeAndSplit(l)
+		                if l == ['']: continue
+		                portID, slaveID, chipID, channelID, tacID, trim = [ int(v) for v in l[0:6] ]
+                                if not c.has_key((portID, slaveID, chipID, channelID)):
+                                   c[(portID, slaveID, chipID, channelID)] = {}
+		                c[(portID, slaveID, chipID, channelID)] =  trim
+	                f.close()
 	return c
 
 

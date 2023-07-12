@@ -1167,16 +1167,17 @@ class Connection:
 		else:
 			modeFile = open("/dev/null", "w")
 
-                modeFile.write("#portID\tslaveID\tchipID\tchannelID\tmode\n")
+                modeFile.write("#portID\tslaveID\tchipID\tchannelID\tmode\tattGain\n")
                 modeList = [] 
                 for portID, slaveID, chipID in asicsConfig.keys():
                         ac = asicsConfig[(portID, slaveID, chipID)]
                         for channelID in range(len(ac.channelConfig)):
                                 cc = ac.channelConfig[channelID]
                                 #mode = cc.getValue("qdc_mode") and "qdc" or "tot"
+                                att = cc.getValue("cfg_a2_attenuator_gain")
                                 mode = "qdc"
                                 modeList.append(mode)
-                                modeFile.write("%d\t%d\t%d\t%d\t%s\n" % (portID, slaveID, chipID, channelID, mode))
+                                modeFile.write("%d\t%d\t%d\t%d\t%s\t%d\n" % (portID, slaveID, chipID, channelID, mode, att))
                                 
                 if(len(set(modeList))!=1):
                         qdcMode = "mixed"
@@ -1365,13 +1366,6 @@ class Connection:
 
 			nFrames = currentFrame - startFrame + 1
 			nBlocks += 1
-			if (currentFrame - lastUpdateFrame) * frameLength > 0.1:
-				t1 = time()
-				stdout.write("Python:: Acquired %d frames in %4.1f seconds, corresponding to %4.1f seconds of data (delay = %4.1f)\r" % (nFrames, t1-t0, nFrames * frameLength, (t1-t0) - nFrames * frameLength))
-				stdout.flush()
-				lastUpdateFrame = currentFrame
-		t1 = time()
-		print "Python:: Acquired %d frames in %4.1f seconds, corresponding to %4.1f seconds of data (delay = %4.1f)" % (nFrames, time()-t0, nFrames * frameLength, (t1-t0) - nFrames * frameLength)
 
 		# Check ASIC link status at end of acquisition
 		self.checkAsicRx()
