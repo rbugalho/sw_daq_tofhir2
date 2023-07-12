@@ -8,6 +8,8 @@ import math
 import time
 import os.path
 import sys
+import pandas as pd
+import numpy as np
 
 def getActiveChannels(conn):
 	return [ (p,s,a,c) for p,s,a in conn.getActiveAsics() for c in range(32) ]
@@ -15,13 +17,25 @@ def getActiveChannels(conn):
 def getActiveTACs(conn):
 	return [ (p,s,a,c,t) for p,s,a,c in getActiveChannels(conn) for t in range(8) ]
 
+dt = np.dtype([
+        ('frameID', '<u8'),
+	('channelID', '<u4'),
+	('tacID', '<u2'),
+	('t1Coarse', '<u2'),
+	('t2Coarse', '<u2'),
+	('qCoarse', '<u2'),
+	('t1Fine', '<u2'),
+        ('t2Fine', '<u2'),
+	('qFine', '<u2'),
+	('extra', '<u2'),
+	('extra2', '<u4')
+])
+
 def main(argv):
 	parser = argparse.ArgumentParser(description='Acquire data for QDC calibration')
 	parser.add_argument("--config", type=str, required=True, help="Configuration file")
 	parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
-	parser.add_argument("--nlengths", type=int, default=128, help="Number of points used for calibration")
         parser.add_argument("--att", type=int, required=True, choices=range(0, 8), help="Attenuator gain setting")
-	parser.add_argument("--chskip", type=int, default=1, help="Step for channels")
 	args = parser.parse_args()
 
         fileNamePrefix = args.fileNamePrefix + ( "%d"%args.att )
@@ -32,7 +46,8 @@ def main(argv):
 	systemConfig.loadToHardware(conn, bias_enable=config.APPLY_BIAS_OFF, qdc_mode="qdc")
 
 	nPhases = 3
-	nLengths = args.nlengths
+	nLengths = 12
+        largeWindow = nLengths
 	lengthStep = 1
 	if not os.path.exists(fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
 		f = open(fileNamePrefix + '.bins', 'w')
@@ -48,51 +63,61 @@ def main(argv):
 			cc.setValue("c_tgr_main", 0b11)
 			#cc.setValue("cfg_a2_attenuator_dc_cancel_en", 0)
 			cc.setValue("c_min_q", 0)
-			cc.setValue("c_max_q", 511)
+			cc.setValue("c_max_q", largeWindow)
                         cc.setValue("cfg_a2_attenuator_gain", args.att)
 
         # Clamp down simulatenous channels due to system limitations
-	# 50/(2*10) -- GbE interface: sustainable average of 50 events/frame, 10 ports per unit, 2 ASIC per port
+	# 62/(12*2) -- GbE interface: 63 events/frame with unit, 12 ports per unit, 2 ASIC per port
 	# 1024/180 -- ASIC TX: 1024 clock/frame (x1 SDR), 160 bits per event (TOFHiR 2B bug)
-	simultaneousChannels = min([50/(2*10), 1024/180])
-
+	simultaneousChannels = min([62/(12*2), 1024/180])
 
 	channelStep = int(math.ceil(32.0/simultaneousChannels))
 
+	t_start1 = time.time()
 
 	print(asicsConfig.values()[0].__class__)
 	if len(asicsConfig) > 0 and isinstance(asicsConfig.values()[0], tofhir2b.AsicConfig):
 		# TOFHiR 2B needs the QDC to be trimmed
 
 		print "Triming QDC"
-		channel_trimmed = {}
+                channel_trimmed = {}
 		for p,s,a,c in getActiveChannels(conn):
 			channel_trimmed[(p,s,a,c)] = False
 
+                # Variables for smart converging:
+                # 1) fastPace==True phase: steps of 8, until at least one channel is meeting stop conditions. No channel trim is set yet
+                # 2) qdc_trim is increased by 7
+                # 3) fastPace==False phase: steps of 1, until all channels meet condition. Channel trim values are set
+                trimStep = 8
+                fastPace = True
+                qdc_trim = 63
+                while qdc_trim > -1 :
 
-		for qdc_trim in range(63,0,-1):
 			if False not in channel_trimmed.values():
 				# All channels have been trimmed
 				break
 
 
-			sys.stdout.write("Trim: %d\r" % qdc_trim)
-			sys.stdout.flush()
+			sys.stdout.write( "Trim: %d " % qdc_trim )
+                        sys.stdout.flush()
 
-			for p,s,a,c in getActiveChannels(conn):
+
+                        for p,s,a,c in getActiveChannels(conn):
 				if not channel_trimmed[(p,s,a,c)]:
 					asicsConfig[(p,s,a)].channelConfig[c].setValue("cfg_a2_dc_trim", qdc_trim)
 
-			qdc_short = {}
-			for p,s,a,c,t in getActiveTACs(conn):
-				for n in range(nPhases):
-					qdc_short[(p,s,a,c,t,n)] = (0, 0)
-
-			qdc_long = deepcopy(qdc_short)
-
+                        df_chan = []
 			for firstChannel in range(0, channelStep):
 				activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
-				activeChannels_string = (", ").join([ "%d" % channel for channel in activeChannels ])
+                                allTrimmed = True
+		                for p,s,a,c in getActiveChannels(conn):
+			                if c in activeChannels and channel_trimmed[(p,s,a,c)] == False:
+                                                allTrimmed = False
+                                if allTrimmed:
+                                        continue
+
+			        sys.stdout.write( "." )
+                                sys.stdout.flush()
 
 				# Enable triggering for active channels
 				cfg = deepcopy(asicsConfig)
@@ -101,60 +126,53 @@ def main(argv):
 						ac.channelConfig[channel].setValue("c_tgr_main", 0b01)
 				conn.setAsicsConfig(cfg)
 
+                                df_phase = {}
 				for n in range(nPhases):
 					phase = float(n) / nPhases
-					for (qdc_store, integrationTime) in [(qdc_short, 1), (qdc_long, 511)]:
+                                        df_int = {}
+					for integrationTime in [1, largeWindow]:
 
-
-						t_start = time.time()
 						conn.set_test_pulse_febds(integrationTime, 1024, phase, False)
-						conn.synchronizeDataToConfig(True)
 
-						for k in range(1000):
-							df = conn.getDecodedDataFrame()
+                                                # Acquire 1000 frames (6.4 ms) and convert output in numpy array first, and pandas dataframe
+                                                nparr = np.frombuffer(conn.acquireAsBytes(0.0064), dt)
+                                                df2 = pd.DataFrame( nparr )
 
-							for channelID, tacID, t1coarse, t2coarse, qcoarse, t1fine, t2fine, qfine in df['events']:
-								c = (channelID >>  0) % 32
-								a = (channelID >>  5) % 64
-								s = (channelID >> 11) % 32
-								p = (channelID >> 16) % 32
+                                                # create table with one line per channel, and multiindex column: both number of events and sum of qFine values are stored for each tacID
+                                                df_int[integrationTime] = pd.pivot_table(df2, values="qFine", index=["channelID"], columns=["tacID"], aggfunc=[np.sum,len])
 
-								count, total = qdc_store[(p,s,a,c,tacID,n)]
-								count += 1
-								total += qfine
-								qdc_store[(p,s,a,c,tacID,n)] = (count, total)
+                                        # add dataframes for different integration windows as new columns (with additional index level)
+                                        df_phase[n] = pd.concat(df_int,axis=1)
 
+                                # add dataframes for different phases as new columns (with additional index level), and rename the indexing levels
+                                df_chan.append( pd.concat(df_phase,axis=1,names=['phase','int_t','oper','tacID']) )
 
-						t_finish = time.time()
-						#print "Channel(s): %s Phase: %4.3f clk Length %d clk in %3.2f seconds " % (activeChannels_string, phase, integrationTime, t_finish - t_start)
-
+                        # append all dataframes in a single one, with one row per channel
+                        df = pd.concat(df_chan)
+                        print("")
 
 			for p,s,a,c in getActiveChannels(conn):
-				trimmed_count = 0
-				for t in range(8):
-					for n in range(nPhases):
-						count_short, total_short = qdc_short[(p,s,a,c,t,n)]
-						count_long, total_long = qdc_long[(p,s,a,c,t,n)]
+				if channel_trimmed[(p,s,a,c)] == True:
+                                        continue
 
-						if (count_short < 10) or (count_long < 10):
-							# This TAC is probably dead
-							trimmed_count += 1
-							continue
+                                # create dataframe with one line per phase/tacID configuration and columns for integration time and count/sum operations
+                                ch_res = df.loc[c+32*(a+64*(s+32*p))].unstack(level=['int_t','oper'])
 
-						avg_short = float(total_short)/count_short
-						err_short = avg_short/math.sqrt(count_short)
+                                # stopping conditions
+                                if len(ch_res[ (ch_res[largeWindow,'len']<10) |
+                                               (ch_res[1,'len']<10) |
+                                               (ch_res[largeWindow,'sum']/ch_res[largeWindow,'len']>ch_res[1,'sum']/ch_res[1,'len']) ]) >= (8 * 2):
+                                        if fastPace:
+                                                # stop fastPace phase
+                                                fastPace = False
+                                                trimStep = 1
+                                                qdc_trim = qdc_trim + 8
+                                        else:
+                                                # trim channel
+					        channel_trimmed[(p,s,a,c)] = True
+                                                # asicsConfig[(p,s,a)].channelConfig[c].setValue("cfg_a2_dc_trim", qdc_trim+1)
 
-						avg_long = float(total_long)/count_long
-						err_long = avg_long/math.sqrt(count_long)
-
-						if avg_long > avg_short:
-							trimmed_count += 1
-
-						#print(qdc_trim, p,s,a,c,t,n, trimmed_count, total_short, total_long, count_short, count_long, avg_short, avg_long, err_short, err_long)
-
-				if trimmed_count >= (8 * 2):
-					channel_trimmed[(p,s,a,c)] = True
-
+                        qdc_trim = qdc_trim - trimStep
 
 
 		if not os.path.exists(fileNamePrefix) or not os.path.samefile(args.fileNamePrefix, "/dev/null"):
@@ -172,7 +190,9 @@ def main(argv):
 			f.close()
 
 
+	t_finish1 = time.time()
 	# Main data acquisition
+
 	conn.openRawAcquisition(fileNamePrefix, calMode=True)
 	for firstChannel in range(0, channelStep):
 		activeChannels = [ channel for channel in range(firstChannel, 32, channelStep) ]
@@ -194,6 +214,9 @@ def main(argv):
 				print "Channel(s): %s Phase: %4.3f clk Length %d clk in %3.2f seconds " % (activeChannels_string, phase, integrationTime, t_finish - t_start)
 
 	systemConfig.loadToHardware(conn, bias_enable=config.APPLY_BIAS_OFF)
+	t_finish2 = time.time()
+        print( "Time for trimming %f " % (t_finish1-t_start1) )
+        print( "Time for acquisition %f " % (t_finish2-t_finish1) )
 	return 0
 
 if __name__ == '__main__':

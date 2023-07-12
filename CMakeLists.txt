@@ -48,7 +48,7 @@ configure_file("src/petsys_util/acquire_tdc_calibration" "acquire_tdc_calibratio
 configure_file("src/petsys_util/acquire_threshold_calibration" "acquire_threshold_calibration" COPYONLY)
 configure_file("src/petsys_util/process_threshold_calibration" "process_threshold_calibration" COPYONLY)
 configure_file("src/petsys_util/acquire_qdc_calibration" "acquire_qdc_calibration" COPYONLY)
-configure_file("src/petsys_util/acquire_qdc_calibration_fixed" "acquire_qdc_calibration_fixed" COPYONLY)
+configure_file("src/petsys_util/acquire_qdc_calibration" "acquire_qdc_calibration_pandas" COPYONLY)
 configure_file("src/petsys_util/acquire_sipm_data" "acquire_sipm_data" COPYONLY)
 configure_file("src/petsys_util/acquire_sipm_data_basic" "acquire_sipm_data_basic" COPYONLY)
 configure_file("src/petsys_util/acquire_sipm_data_scan" "acquire_sipm_data_scan" COPYONLY)
