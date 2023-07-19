@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from petsys import daqd, config, spi
+from copy import deepcopy
+import argparse
+import math
+import time
+
+
+
+
+def main():
+	conn = daqd.Connection()
+
+	#chipID = 0x15
+	#print spi.max111xx_check(conn, 0, 0, chipID)
+
+	k = 2.048 / 4096
+
+
+	print "0\t0\tTester Vin:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 0)  * k * 3)
+	print "0\t1\tUUT Vin:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 1)  * k * 3)
+	print "0\t2\tASIC 0 Vdd:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 2)  * k)
+	print "0\t3\tASIC 1 Vdd:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 3)  * k)
+	print "0\t12\tUUT In:\t%5.3f A" % (spi.max111xx_read(conn, 0, 0, 0x14, 12)  * k)
+	
+
+	return 0
+
+
+
+if __name__ == "__main__":
+	main()
+
