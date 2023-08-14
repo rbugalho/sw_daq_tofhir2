@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from petsys import daqd, config, spi
+from petsys import tester_controller, config, spi
 from copy import deepcopy
 import argparse
 import math
@@ -11,21 +11,17 @@ import time
 
 def main():
 	parser = argparse.ArgumentParser(description='Set UUT power ON/OFF')
-	parser.add_argument("--power", type=str, required=True, choices=["off", "on"], help="Set UUT power")
+	parser.add_argument("--power", type=str, required=True, choices=["on", "tester_off", "uut_off"], help="Set UUT power")
 	args = parser.parse_args()
 
-	conn = daqd.Connection()
-
+	conn = tester_controller.Connection()
 
 	if args.power == "on":
-		v = 0
-		v |= 0b100 # Enable RED LED
-		v |= 0b111000 # Enable power
-		v |= 0b1111000000 # Enable BV loads
+		conn.set_fe_power(True)
+	elif args.power == "uut_off":
+		conn.set_fe_power(False)
 	else:
-		v = 0
-
-	spi.spi_reg(conn, 0, 0, 0x10+0, 64, v)
+		conn.set_fe_power_all(False)
 
 	return 0
 

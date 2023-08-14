@@ -16,13 +16,9 @@ def main():
 	connection = daqd.Connection()
 	
 	if args.power == "on":
-		value = 0b11
+		connection.set_fe_power(True)
 	else:
-		value = 0
-		
-		
-	for portID, slaveID in connection.getActiveFEBDs(): 
-		connection.write_config_register(portID, slaveID, 2, 0x0213, value) 
+		connection.set_fe_power(False)
 	
 	
 
