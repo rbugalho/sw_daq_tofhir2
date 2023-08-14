@@ -141,7 +141,6 @@ public:
 			brStep2 = step2;
 			hIndex->Fill();
 			stepBegin = hData->GetEntries();
-			hFile->Write();
 		}
 		else if(fileType == FILE_BINARY) {
 			fprintf(indexFile, "%llu\t%llu\t%e\t%e\n", stepBegin, ftell(dataFile), step1, step2);
