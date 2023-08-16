@@ -23,7 +23,7 @@ MAX_SLAVES = 32
 MAX_CHIPS = 64
 
 # Handles interaction with the system via daqd
-class Connection:
+class Connection(object):
         ## Constructor
 	def __init__(self):
 		socketPath = "/tmp/d.sock"
@@ -276,9 +276,16 @@ class Connection:
 			self.write_config_register(portID, slaveID, 64, 0x0214, current)
 
 
+	def set_fe_power(self, on):
+		if on:
+			value = 0b11
+		else:
+			value = 0b00
+
+		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0213, value) 
+		sleep(0.1) # Wait for power to stabilize
 
 
-	## Sends the entire configuration (needs to be assigned to the abstract Connection.config data structure) to the ASIC and starts to write data to the shared memory block
         # @param maxTries The maximum number of attempts to read a valid dataframe after uploading configuration 
 	def initializeSystem(self, maxTries = 5):
 		# Stop the acquisition, if the system was still acquiring
@@ -347,8 +354,7 @@ class Connection:
 			
 			
 		# Power on ASICs
-		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0213, 0b11) 
-		sleep(0.1) # Wait for power to stabilize
+		self.set_fe_power(True)
 
 		# Reset the ASICs configuration
 		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0201, 0b00)
@@ -391,7 +397,7 @@ class Connection:
 			gctx.setValue("c_tx_clps", 1023)
 			
 			
-			for chipID in range(8):
+			for chipID in range(16):
 				busID = chipID / 2
 				chipID = chipID % 2
 				self.__tofhir2_cmd(portID, slaveID, busID, chipID, 33, True, False, gctx)
@@ -408,7 +414,7 @@ class Connection:
 		
 		
 		for portID, slaveID in self.getActiveFEBDs():
-			for chipID in range(8):
+			for chipID in range(16):
 				try:
 					# Chip may not be present, try only a few times
 					self.__doAsicCommand(portID, slaveID, chipID, "wrGlobalCfg", value=gc, maxTries=5)					
@@ -554,11 +560,9 @@ class Connection:
 				
 		
 		## Load bandgap e-fuses
-		self.write_config_register_febds(3, 0x0213, 0b111)
 		sleep(0.2)
 		for portID, slaveID, chipID in self.getActiveAsics():
 			self.__doAsicCommand(portID, slaveID, chipID, "efuse_load")
-		self.write_config_register_febds(3, 0x0213, 0b011)
 		sleep(0.2)
 	
 		# Adjust global bias current DAC
@@ -630,7 +634,7 @@ class Connection:
 		return self.read_mem_ctrl(portID, slaveID, ctrl_id, 16, word_width, base_address, n_words);
 		
 	def read_mem_ctrl(self, portID, slaveID, ctrl_id, addr_width, word_width, base_address, n_words):
-		n_bytes_per_addr = int(math.ceil(addr_width / 8.0))
+		n_bytes_per_addr = 2
 		n_bytes_per_word = int(math.ceil(word_width / 8.0))
 		
 		base_addr_bytes = [ (base_address >> (8*n)) & 0xFF for n in range(n_bytes_per_addr) ]
@@ -688,6 +692,34 @@ class Connection:
 		for portID, slaveID in self.getActiveFEBDs():
 			self.write_config_register(portID, slaveID, word_width, base_address, value)
 		return None
+
+	## Performs an I2C transtions
+	# @param portID  DAQ port ID where the FEB/D is connected
+	# @param slaveID Slave ID on the FEB/D chain
+	# @param busID ID of I2C bus
+	# @param s Byte sequence containing the operations
+	def i2c_master(self, portID, slaveID, busID, s):
+		# Contents of s
+		# bit 0: State to set SCL (0 pull down, 1 high-Z)
+		# bit 1: State to set SCA (0 pull down, 1 hight-Z)
+		# bit 2: Check that SCL went to the desired state
+		# bit 3: Check that SDA went to the desired state (should be 0 for read bits)
+
+		# return a sequenceof bytes with same length of 0
+		# bit 0: state of SCL
+		# bit 1: state of SDA
+		# Bits 7-4: 0x0 when OK, 0xE during a bus error
+
+		word0 = (busID >> 8) & 0xFF
+		word1 = (busID >> 0) & 0xFF
+
+		r = self.sendCommand(portID, slaveID, 4, bytes([word0, word1] + s))
+
+		status = r[0]
+		error = (status & 0xE0) != 0
+
+		return r
+
 	
 	def spi_master_execute(self, portID, slaveID, cfgFunctionID, chipID, cycle_length, sclk_en_on, sclk_en_off, cs_on, cs_off, mosi_on, mosi_off, miso_on, miso_off, mosi_data):
 		if len(mosi_data) == 0:
