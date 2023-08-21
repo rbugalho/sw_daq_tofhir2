@@ -6,7 +6,7 @@ from copy import deepcopy
 import argparse
 import math
 import time
-
+import sys
 
 
 def do_scan(conn, asicsConfig0, step, aldo_range, load, output_file):
@@ -44,6 +44,8 @@ def do_scan(conn, asicsConfig0, step, aldo_range, load, output_file):
 
 		conn.setAsicsConfig(asicsConfig1)
 		time.sleep(0.1)
+		sys.stdout.write("ALDO range %4s %3d/256\r" % (aldo_range, aldo_dac))
+		sys.stdout.flush()
 
 
 		for  (p, s, a), ac in sorted(asicsConfig1.items()):
