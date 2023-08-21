@@ -72,6 +72,7 @@ configure_file("src/petsys_util/read_communication_counters" "read_communication
 configure_file("src/petsys_util/check_asic_links" "check_asic_links" COPYONLY)
 configure_file("src/petsys_util/change_calibration_topology" "change_calibration_topology" COPYONLY)
 configure_file("src/petsys_util/acquire_fetp_scan" "acquire_fetp_scan" COPYONLY)
+configure_file("src/petsys_util/acquire_exttp_calibration" "acquire_exttp_calibration" COPYONLY)
 configure_file("src/petsys_util/quick_asic_scan" "quick_asic_scan" COPYONLY)
 configure_file("src/petsys_util/psqc_fetp.C" "psqc_fetp.C" COPYONLY)
 configure_file("src/petsys_util/asic_command_parser" "asic_command_parser" COPYONLY)
