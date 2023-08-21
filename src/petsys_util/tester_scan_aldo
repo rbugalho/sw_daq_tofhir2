@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from petsys import tester_controller, config, spi
+from copy import deepcopy
+import argparse
+import math
+import time
+
+
+
+def do_scan(conn, asicsConfig0, step, aldo_range, load, output_file):
+	testers = conn.get_testers()
+	for tester in testers.values():
+		tester.enable_bias_voltage_load(load)
+
+
+
+	# Enable and configure ALDO modes before scanning DAC
+	asicsConfig1 = deepcopy(asicsConfig0)
+	for ac in asicsConfig1.values():
+		gc = ac.globalConfig
+		gc.setValue("c_aldo_en", 0b11)
+
+		if aldo_range == "low":
+			gc.setValue("Valdo_A_Gain", 0)
+			gc.setValue("Valdo_B_Gain", 0)
+			gc.setValue("c_aldo_range", 0b00)
+		else:
+			gc.setValue("Valdo_A_Gain", 1)
+			gc.setValue("Valdo_B_Gain", 1)
+			gc.setValue("c_aldo_range", 0b11)
+
+	conn.setAsicsConfig(asicsConfig1)
+	time.sleep(1.0)
+
+
+	for aldo_dac in range(0, 256, step):
+		for (p, s, a), ac in asicsConfig1.items():
+			gc = ac.globalConfig
+
+			for aldo_output in ["A", "B"]:
+				gc.setValue("Valdo_%s_DAC" % aldo_output, aldo_dac)
+
+		conn.setAsicsConfig(asicsConfig1)
+		time.sleep(0.1)
+
+
+		for  (p, s, a), ac in sorted(asicsConfig1.items()):
+			# Select the tester which has this ASIC
+			module = a // 2
+			asic = a % 2
+			tester = testers[(p, s, module)]
+
+			for aldo_output in ["A", "B"]:
+				v = tester.get_bias_voltage(asic, aldo_output)
+				i = tester.get_bias_current(asic, aldo_output)
+
+				output_file.write("%d\t%d\t%s\t%f\t%s\n" % (module, asic, aldo_output, v, i))
+
+				failures = tester.check_bias_voltage(asic, aldo_output, v)
+
+				if failures != []:
+					print "ALDO failure check at (%2d %2d %d %d) OUT %s"  % (p, s, m, asic, aldo_output), failures
+					exit(1)
+
+
+
+def main():
+	parser = argparse.ArgumentParser(description='Acquire ALDO data')
+	parser.add_argument("--dir", type=str, required=True)
+	parser.add_argument("--step", default=1, help="Step")
+	parser.add_argument("--load", action="store_true", help="Enable loads")
+	args = parser.parse_args()
+	
+	conn = tester_controller.Connection()
+	conn.initializeSystem()
+	asicsConfig0 = deepcopy(conn.getAsicsConfig())
+
+
+	load_str = args.load and "loadon" or "loadoff"
+
+	
+	for aldo_range in [ "high", "low" ]:
+		ofn = "%s/aldo_measurements_%s_%s.tsv" % (args.dir, aldo_range, load_str)
+		output_file = open(ofn, "w")		
+		do_scan(conn, asicsConfig0, args.step, aldo_range, args.load, output_file)
+
+	return 0
+
+
+
+if __name__ == "__main__":
+	main()
+

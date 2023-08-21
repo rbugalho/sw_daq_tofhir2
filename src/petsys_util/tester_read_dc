@@ -1,31 +1,63 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from petsys import daqd, config, spi
+from petsys import tester_controller, config, spi
 from copy import deepcopy
 import argparse
 import math
 import time
+import subprocess
+import sys
 
 
 
 
 def main():
-	conn = daqd.Connection()
+	conn = tester_controller.Connection()
+	parser = argparse.ArgumentParser(description='Set UUT power ON/OFF')
+	parser.add_argument("-o", type=str, default=None, help="Output file")
+	args = parser.parse_args()
 
-	#chipID = 0x15
-	#print spi.max111xx_check(conn, 0, 0, chipID)
+	# We need to initialize TOFHiRs and enable the ALDO HV outputs to be able to measure HV
+	conn.initializeSystem()
+	asicsConfig = conn.getAsicsConfig()
+	for ac in asicsConfig.values():
+		gc = ac.globalConfig
+		gc.setValue("c_aldo_en", 0b11)
+		gc.setValue("c_aldo_range", 0b00) # Range for ALDO HV current measurement
+		
+		gc.setValue("Valdo_A_Gain", 0) # Select ALDO HV low range output
+		gc.setValue("Valdo_A_DAC", 255) # Set ALDO HV to maximum
+		gc.setValue("Valdo_B_Gain", 0) # Select ALDO HV low range output
+		gc.setValue("Valdo_B_DAC", 255) # Select ALDO HV low range output
 
-	k = 2.048 / 4096
-
-
-	print "0\t0\tTester Vin:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 0)  * k * 3)
-	print "0\t1\tUUT Vin:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 1)  * k * 3)
-	print "0\t2\tASIC 0 Vdd:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 2)  * k)
-	print "0\t3\tASIC 1 Vdd:\t%5.3f V" % (spi.max111xx_read(conn, 0, 0, 0x14, 3)  * k)
-	print "0\t12\tUUT In:\t%5.3f A" % (spi.max111xx_read(conn, 0, 0, 0x14, 12)  * k)
+	conn.setAsicsConfig(asicsConfig)
 	
-
+	
+	if args.o is not None:
+		output_file = open(args.o, "w")
+	else:
+		output_file = sys.stdout
+		
+	
+	mm = [ m for (p,s,m), tester in sorted(conn.get_testers().items()) ]
+	tt = [ tester for (p,s,m), tester in sorted(conn.get_testers().items()) ]
+	
+	output_file.write("# Tester port:\t%s\n" % ("\t").join([ str(m) for m in mm ]))
+	
+	output_file.write("Tester Vin (V):\t%s\n" % ("\t").join([ str(t.get_tester_vin()) for t in tt ]))
+	output_file.write("Tester Temp 0 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
+	output_file.write("Tester Temp 1 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
+	output_file.write("UUT Vin (V):\t%s\n" % ("\t").join([ str(t.get_uut_vin()) for t in tt ]))
+	output_file.write("UUT Iin (A):\t%s\n" % ("\t").join([ str(t.get_uut_iin()) for t in tt ]))
+	output_file.write("UUT Vdd0  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(0)) for t in tt ]))
+	output_file.write("UUT Vdd1  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(1)) for t in tt ]))
+	output_file.write("UUT TEC path (ohm):\t%s\n" % ("\t").join([ str(t.get_tec_resistance()) for t in tt ]))
+	output_file.write("UUT PT1000 path 0 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[0]) for t in tt ]))
+	output_file.write("UUT PT1000 path 1 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[1]) for t in tt ]))
+	output_file.write("UUT PT1000 path 2 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[2]) for t in tt ]))
+	output_file.write("UUT PT1000 path 3 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[3]) for t in tt ]))
+	
 	return 0
 
 
