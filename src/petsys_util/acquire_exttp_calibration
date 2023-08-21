@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+from petsys import tester_controller, config
+from copy import deepcopy
+from time import sleep
+import argparse
+
+def main(argv):
+	parser = argparse.ArgumentParser(description='Acquire data for TDC calibration')
+	parser.add_argument("--config", type=str, required=True, help="Configuration file")
+	parser.add_argument("-o", type=str, dest="fileNamePrefix", required=True, help="Data filename (prefix)")
+	parser.add_argument("--time", type=float, required=True, help="Acquisition time (in seconds)")
+	parser.add_argument("--amp", type=int, default=10, help="Test-pulse amplitude setting")
+        parser.add_argument("--isTofhir2X", action="store_true", help="Use configuration for 2X")
+        parser.add_argument("--scanth", action="store_true", help="Scan the thresholds")
+        # parser.add_argument("--scan", type=str, default="th", choices=["th", "amp"], help="Parameter to be scanned (discriminator threshold or test-pulse amplitude)")
+	args = parser.parse_args()
+
+	mask = config.LOAD_ALL ^ config.LOAD_ALDO_CALIBRATION ^ config.LOAD_BIAS_SETTINGS_ALDO
+	mask ^= config.LOAD_QDCMODE_MAP
+	systemConfig = config.ConfigFromFile(args.config, loadMask=mask)
+
+        amplist = [args.amp]
+        thlist = [10]
+
+        if args.scanth:
+                thlist = range(64)
+
+        att=7
+        intime=2
+
+	conn = tester_controller.Connection()
+	conn.initializeSystem()
+	systemConfig.loadToHardware(conn, config.APPLY_BIAS_OFF, False, "qdc", att)
+
+	conn.openRawAcquisition(args.fileNamePrefix)
+	phase=0
+	# The external injector needs more time between pulses to reset the circuit's operation point
+        conn.setTestPulsePLL(512, 16000, 0.1*phase, False)
+		
+        asicsConfig0 = conn.getAsicsConfig()
+        for channelID in range(32):
+
+                for amplitude in amplist:
+                        asicsConfig = deepcopy(asicsConfig0)
+                        limit_reached = False
+                        for ith in thlist:
+                                for (portID, slaveID, chipID), ac in asicsConfig.items():
+                                        gc = ac.globalConfig
+
+                                        for tester in conn.get_testers():
+						# Usable DAC range for external injectors is 0x8000 to 0xFFFF
+						dac = 0x8000 + amplitude * 8000//32)
+						tester.injector_enable(channelID, dac)
+
+                                        cc = ac.channelConfig[channelID]
+                                        cc.setValue("c_tgr_main", 0b00)
+						
+                                        rangeT2 = 3
+                                        rangeT1 = 1
+                                        rangeE = 0
+
+                                        dac_setting_ith2 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t2", int(ith), int(rangeT2))
+                                        if dac_setting_ith2 > 63:
+                                                limit_reached = True
+                                        cc.setValue("c_tgr_t1", 0b01)
+                                        cc.setValue("c_tgr_q", 0b01)
+                                        cc.setValue("c_tgr_t2", 0b00)
+                                        cc.setValue("c_tgr_V", 0b01)
+                                        cc.setValue("c_tgr_B", 0b001)
+                                        cc.setValue("cfg_a3_range_t2", rangeT2)
+                                        cc.setValue("cfg_a3_ith_t2", dac_setting_ith2)
+
+                                        # --- everything set to threshold T1
+                                        # dac_setting_ith1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(ith), int(rangeT1))
+                                        # if dac_setting_ith1 > 63:
+                                        #       limit_reached = True
+                                        # cc.setValue("c_tgr_t1", 0b00)
+                                        # cc.setValue("c_tgr_q", 0b00)
+                                        # cc.setValue("c_tgr_t2", 0b00)
+                                        # cc.setValue("c_tgr_V", 0b00)
+                                        # cc.setValue("c_tgr_B", 0b000)
+                                        # cc.setValue("cfg_a3_range_t1", rangeT1)
+                                        # cc.setValue("cfg_a3_ith_t1", dac_setting_ith1)
+
+                                        # # --- everything set to threshold E
+                                        # dac_setting_ithe = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_e", int(ith), int(rangeE))
+                                        # dac_setting_ith1 = systemConfig.mapAsicChannelThresholdToDAC((portID, slaveID, chipID, channelID), "vth_t1", int(9), int(rangeT1))
+                                        # if dac_setting_ithe > 63:
+                                        #         limit_reached = True
+                                        # cc.setValue("c_tgr_main", 0b00)
+                                        # cc.setValue("c_tgr_t1", 0b10)
+                                        # # cc.setValue("c_tgr_q", 0b10)
+                                        # cc.setValue("c_tgr_q", 0b00) # Cherge integration triggered by T1
+                                        # cc.setValue("c_tgr_t2", 0b00)
+                                        # cc.setValue("c_tgr_V", 0b10)
+                                        # cc.setValue("c_tgr_B", 0b10)
+                                        # cc.setValue("cfg_a3_ith_e", dac_setting_ithe)
+                                        # cc.setValue("cfg_a3_range_e", rangeE)
+                                        # cc.setValue("cfg_a3_range_t1", rangeT1)
+                                        # cc.setValue("cfg_a3_ith_t1", dac_setting_ith1)
+
+
+                                        cc.setValue("cfg_a2_pulse_trim_t", 15)
+                                        cc.setValue("cfg_a2_pulse_trim_e", 15)
+                                        cc.setValue("cfg_a2_dcr_delay_t", 2**7-1)
+                                        cc.setValue("cfg_a2_dcr_delay_e", 2**7-1)
+                                        if not args.isTofhir2X:
+					        cc.setValue("cfg_a2_dcr_delay_t_high", 0)
+
+                                        cc.setValue("cfg_a2_attenuator_gain", att)
+                                        cc.setValue("c_min_q", intime)
+                                        cc.setValue("c_max_q", intime)
+
+                                if limit_reached: break
+                                conn.setAsicsConfig(asicsConfig)
+                                print("channelID = %2d - amplitude = %2d - ith = %2d" % (channelID, amplitude, ith))
+				sleep(0.1)
+                                conn.acquire(args.time, amplitude, ith)
+
+
+	systemConfig.loadToHardware(conn, config.APPLY_BIAS_OFF, False, "qdc", att)
+	return 0
+
+if __name__ == "__main__":
+	sys.exit(main(sys.argv))
