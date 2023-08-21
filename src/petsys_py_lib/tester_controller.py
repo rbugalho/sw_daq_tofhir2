@@ -30,19 +30,21 @@ class Connection(daqd.Connection):
 
 
 
-	def set_fe_power_all(self, on):
-		if on:
-			self.set_fe_power(True)
-		else:
-			super(Connection, self).set_fe_power(False)
+	def set_fe_power_all(self, mask):
+		
+		if (mask & 0b1) == 0:
+			# Everything off
+			for portID, slaveID in self.getActiveFEBDs():
+				self.write_config_register(portID, slaveID, 8, 0x0213, 0b0)
 
-	def set_fe_power(self, on):
-		if not on:
+
+		elif (mask & 0b10) == 0:
+			# Power to Testers only
 			# Disable 44 V and TEC source if enabled, leave only tester power
+			print("tester power only")
 			for portID, slaveID in self.getActiveFEBDs():
 				pwr_en = 0b01
 				self.write_config_register(portID, slaveID, 8, 0x0213, pwr_en)
-
 
 			self.__identify_testers()
 			for key, tester in sorted(self.__testers.items()):
@@ -69,8 +71,29 @@ class Connection(daqd.Connection):
 
 			# Finally turn the 44 V source
 			for portID, slaveID in self.getActiveFEBDs():
-				self.write_config_register(portID, slaveID, 8, 0x0213, 0b1101)
+				self.write_config_register(portID, slaveID, 8, 0x0213, 0b0101)
+		
+
+	def set_fe_power(self, on):
+		if not on:
+			self.set_fe_power_all(0b01)
+		else:
+			self.set_fe_power_all(0b11)
 			
+			
+	def set_tec_power(self, on):
+		for portID, slaveID in self.getActiveFEBDs():
+			pwr_en =  self.read_config_register(portID, slaveID, 8, 0x0213)
+			if not on:
+				pwr_en &= ~0b1000
+				self.write_config_register(portID, slaveID, 8, 0x0213, pwr_en)
+			else:
+				pwr_en |= 0b1000
+				self.write_config_register(portID, slaveID, 8, 0x0213, pwr_en)
+				time.sleep(0.2)
+
+		
+		
 
 
 	def get_testers(self):

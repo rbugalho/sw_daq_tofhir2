@@ -18,9 +18,9 @@ class Tester(object):
 		else:
 			vin = self.get_tester_vin()
 			if vin < 1.6:
-				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %3.1f V is under 1.6 V" % vin)
+				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %4.2f V is under 1.6 V" % vin)
 			if vin > 2.5:
-				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %3.1f V is above 2.5 V" % vin)
+				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %4.2f V is above 2.5 V" % vin)
 
 			self.__cfg |= 0b111100
 			spi.spi_reg(self.__conn, 0, 0, 0x10*(self.__m+1)+0, 64, self.__cfg)
@@ -29,15 +29,15 @@ class Tester(object):
 			# Check current and voltages
 			vin = self.get_tester_vin()
 			if vin < 1.6:
-				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %3.1f V is under 1.6 V" % vin)
+				raise TesterPowerException(self.__p, self.__s, self.__m, "Tester input voltage %4.2f V is under 1.6 V" % vin)
 
 			vin = self.get_uut_vin()
 			if vin < 1.6:
-				raise TesterPowerException(self.__p, self.__s, self.__m, "UUT input voltage %3.1f V is under 1.6 V" % vin)
+				raise TesterPowerException(self.__p, self.__s, self.__m, "UUT input voltage %4.2f V is under 1.6 V" % vin)
 
 			iin = self.get_uut_iin()
 			if iin > 1.0:
-				raise TesterPowerException(self.__p, self.__s, self.__m, "UUT input current %3.1f A is above 1.0 A" % iin)
+				raise TesterPowerException(self.__p, self.__s, self.__m, "UUT input current %4.2f A is above 1.0 A" % iin)
 	
 
 			#for n in range(2):

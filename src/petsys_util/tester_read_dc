@@ -18,8 +18,11 @@ def main():
 	parser.add_argument("-o", type=str, default=None, help="Output file")
 	args = parser.parse_args()
 
+	
 	# We need to initialize TOFHiRs and enable the ALDO HV outputs to be able to measure HV
+	# and reasonable DC currents
 	conn.initializeSystem()
+
 	asicsConfig = conn.getAsicsConfig()
 	for ac in asicsConfig.values():
 		gc = ac.globalConfig
@@ -52,7 +55,9 @@ def main():
 	output_file.write("UUT Iin (A):\t%s\n" % ("\t").join([ str(t.get_uut_iin()) for t in tt ]))
 	output_file.write("UUT Vdd0  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(0)) for t in tt ]))
 	output_file.write("UUT Vdd1  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(1)) for t in tt ]))
+	conn.set_tec_power(True)
 	output_file.write("UUT TEC path (ohm):\t%s\n" % ("\t").join([ str(t.get_tec_resistance()) for t in tt ]))
+	conn.set_tec_power(False)
 	output_file.write("UUT PT1000 path 0 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[0]) for t in tt ]))
 	output_file.write("UUT PT1000 path 1 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[1]) for t in tt ]))
 	output_file.write("UUT PT1000 path 2 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[2]) for t in tt ]))

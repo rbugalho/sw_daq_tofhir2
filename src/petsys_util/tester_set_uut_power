@@ -17,11 +17,11 @@ def main():
 	conn = tester_controller.Connection()
 
 	if args.power == "on":
-		conn.set_fe_power(True)
+		conn.set_fe_power_all(0b11)
 	elif args.power == "uut_off":
-		conn.set_fe_power(False)
+		conn.set_fe_power_all(0b01)
 	else:
-		conn.set_fe_power_all(False)
+		conn.set_fe_power_all(0b0)
 
 	return 0
 
