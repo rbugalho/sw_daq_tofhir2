@@ -69,7 +69,7 @@ def do_scan(conn, asicsConfig0, step, aldo_range, load, output_file):
 def main():
 	parser = argparse.ArgumentParser(description='Acquire ALDO data')
 	parser.add_argument("--dir", type=str, required=True)
-	parser.add_argument("--step", default=1, help="Step")
+	parser.add_argument("--step", default=1, type=int, help="Step")
 	parser.add_argument("--load", action="store_true", help="Enable loads")
 	args = parser.parse_args()
 	
