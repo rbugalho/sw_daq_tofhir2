@@ -78,7 +78,7 @@ def ad7738_get_register(conn, portID, slaveID, chipID, register, l=1):
 	
 	
 
-
+class MAX111xxError(Exception): pass
 
 def max111xx_ll(conn, portID, slaveID, chipID, command):
         w = 8 * len(command)
@@ -126,5 +126,5 @@ def max111xx_read(conn, portID, slaveID, chipID, channelID):
         v = reply[1] * 256 + reply[2]
         u = v & 0b111111111111
         ch = (v >> 12)
-        assert ch == channelID
+	if ch != channelID: raise MAX111xxError("Error reading (%2d %2d) chip 0x%04X channel %2d" % (portID, slaveID, chipID, channelID))
         return u
