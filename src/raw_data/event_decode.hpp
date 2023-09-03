@@ -27,7 +27,7 @@ public:
 	unsigned short getPrevEventFlags()	{ return (word >> 8) % 16; };
 	unsigned short getTacID()	{ return (word >> 5) % 8; };
 	unsigned int getChannelID()   { 
-		unsigned __int128 asicID = (word >> 83) % 8;
+		unsigned __int128 asicID = (word >> 83);
 		unsigned __int128 channelID = (word % 32);
 		unsigned int r = (asicID << 5) | channelID;
 		return r;
