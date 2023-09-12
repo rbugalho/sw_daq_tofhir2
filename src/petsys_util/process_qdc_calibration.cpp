@@ -114,13 +114,15 @@ int main(int argc, char *argv[])
 	char *tmpFilePrefix = NULL;
 	bool doSorting = true;
 	bool keepTemporary = false;
+	bool doFake = false;
 
         static struct option longOptions[] = {
                 { "help", no_argument, 0, 0 },
                 { "config", required_argument, 0, 0 },
                 { "no-sorting", no_argument, 0, 0 },
                 { "keep-temporary", no_argument, 0, 0 },
-		{ "tmp-prefix", required_argument, 0, 0 }
+		{ "tmp-prefix", required_argument, 0, 0 },
+		{ "fake", no_argument, 0, 0 }
         };
 
 	while(true) {
@@ -143,6 +145,7 @@ int main(int argc, char *argv[])
 			case 2:		doSorting = false; break;
 			case 3:		keepTemporary = true; break;
 			case 4:		tmpFilePrefix = optarg; break;
+			case 5:		doFake = true; break;
 			default:	displayUsage(); exit(1);
 			}
 		}
@@ -192,14 +195,23 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(doSorting) {
-		sortData(inputFilePrefix, tmpFilePrefix);
-	}
- 	calibrateAllAsics(config, calibrationTable, tmpFilePrefix, nBins, xMin, xMax, tmpFilePrefix);
 
-	writeCalibrationTable(calibrationTable, outputFilePrefix);
-	if(!keepTemporary) {
-		deleteTemporaryFiles(tmpFilePrefix);
+	if(!doFake) {
+		if(doSorting) {
+			sortData(inputFilePrefix, tmpFilePrefix);
+		}
+		calibrateAllAsics(config, calibrationTable, tmpFilePrefix, nBins, xMin, xMax, tmpFilePrefix);
+
+		writeCalibrationTable(calibrationTable, outputFilePrefix);
+		if(!keepTemporary) {
+			deleteTemporaryFiles(tmpFilePrefix);
+		}
+	}
+	else {
+		for(int gid = 0; gid < MAX_N_QAC; gid++) {
+			calibrationTable[gid].valid = (calibrationTable[gid].trim != -1);
+		}
+		writeCalibrationTable(calibrationTable, outputFilePrefix);
 	}
 
 	return 0;
