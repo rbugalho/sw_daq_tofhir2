@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-project(sw_daq_tofpet2)
+project(sw_daq_tofhir2)
 find_package(PythonLibs 2.6 REQUIRED)
 find_package(Boost REQUIRED python regex)
 include(CheckIncludeFiles)
