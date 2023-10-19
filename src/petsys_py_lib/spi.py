@@ -1,3 +1,5 @@
+import time
+
 def spi_reg_ll(conn, portID, slaveID, chipID, data_out):
 	p = 2
 	padding = [ 0xFF for n in range(p) ]
@@ -75,6 +77,24 @@ def ad7738_get_register(conn, portID, slaveID, chipID, register, l=1):
 		retval = retval * 256 + r[1]
 
 	return retval
+
+def ad7738_check(conn, portID, slaveID, chipID):
+	u = ad7738_get_register(conn, portID, slaveID, chipID, 0x02)
+	u = ad7738_get_register(conn, portID, slaveID, chipID, 0x02)
+	return u == 0x21
+
+def ad7738_read_channel(conn, portID, slaveID, chipID, ch):
+	ad7738_check(conn, portID, slaveID, chipID)
+
+	ad7738_set_register(conn, portID, slaveID, chipID, 0x28 + ch, 0b00001101)
+	ad7738_set_register(conn, portID, slaveID, chipID, 0x38 + ch, 0b01000010)
+
+	time.sleep(0.1)
+	status = ad7738_get_register(conn, portID, slaveID, chipID, 0x20+ ch)
+	val = ad7738_get_register(conn, portID, slaveID, chipID, 0x08 + ch, l=3)
+	#print status >> 5, status & 0b1000, status & 0b100, status & 0b10, status & 0b1, "0x%012X" % val, 1.25 / (2**23) * val
+	return val
+
 	
 	
 

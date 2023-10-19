@@ -1,5 +1,5 @@
 import daqd, tester_common
-import fe_tester
+import fe_tester, bga_tester
 import spi, i2c
 import time
 
@@ -23,6 +23,10 @@ class Connection(daqd.Connection):
 					elif adc_test_result == [ True, True, True, True, True, True, True ]:
 						# This port seems to have a FE tester
 						self.__testers[(portID, slaveID, module)] = fe_tester.Tester(self, portID, slaveID, module)
+
+					elif adc_test_result == [False, False, True, False, False, False, False]:
+						# This port may have a BGA tester
+						self.__testers[(portID, slaveID, module)] = bga_tester.Tester(self, portID, slaveID, module)
 
 					else:
 						print "ERROR: Unknown Tester at (%2d %2d %d): %s" % (portID, slaveID, module, adc_test_result)

@@ -16,6 +16,7 @@ def main():
 	conn = tester_controller.Connection()
 	parser = argparse.ArgumentParser(description='Set UUT power ON/OFF')
 	parser.add_argument("-o", type=str, default=None, help="Output file")
+	parser.add_argument("--mode", default="btl_fe", choices=["btl_fe", "bga"], help="Choose tester type")
 	args = parser.parse_args()
 
 	
@@ -48,21 +49,31 @@ def main():
 	
 	output_file.write("# Tester port:\t%s\n" % ("\t").join([ str(m) for m in mm ]))
 	
-	output_file.write("Tester Vin (V):\t%s\n" % ("\t").join([ str(t.get_tester_vin()) for t in tt ]))
-	output_file.write("Tester Temp 0 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
-	output_file.write("Tester Temp 1 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
-	output_file.write("UUT Vin (V):\t%s\n" % ("\t").join([ str(t.get_uut_vin()) for t in tt ]))
-	output_file.write("UUT Iin (A):\t%s\n" % ("\t").join([ str(t.get_uut_iin()) for t in tt ]))
-	output_file.write("UUT Vdd0  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(0)) for t in tt ]))
-	output_file.write("UUT Vdd1  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(1)) for t in tt ]))
-	conn.set_tec_power(True)
-	output_file.write("UUT TEC path (ohm):\t%s\n" % ("\t").join([ str(t.get_tec_resistance()) for t in tt ]))
-	conn.set_tec_power(False)
-	output_file.write("UUT PT1000 path 0 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[0]) for t in tt ]))
-	output_file.write("UUT PT1000 path 1 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[1]) for t in tt ]))
-	output_file.write("UUT PT1000 path 2 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[2]) for t in tt ]))
-	output_file.write("UUT PT1000 path 3 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[3]) for t in tt ]))
-	
+	if args.mode == "btl_fe":
+		output_file.write("Tester Vin (V):\t%s\n" % ("\t").join([ str(t.get_tester_vin()) for t in tt ]))
+		output_file.write("Tester Temp 0 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
+		output_file.write("Tester Temp 1 (ºC):\t%s\n" % ("\t").join([ "NaN" for t in tt ]))
+		output_file.write("UUT Vin (V):\t%s\n" % ("\t").join([ str(t.get_uut_vin()) for t in tt ]))
+		output_file.write("UUT Iin (A):\t%s\n" % ("\t").join([ str(t.get_uut_iin()) for t in tt ]))
+		output_file.write("UUT Vdd0  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(0)) for t in tt ]))
+		output_file.write("UUT Vdd1  (V):\t%s\n" % ("\t").join([ str(t.get_uut_1V2(1)) for t in tt ]))
+		conn.set_tec_power(True)
+		output_file.write("UUT TEC path (ohm):\t%s\n" % ("\t").join([ str(t.get_tec_resistance()) for t in tt ]))
+		conn.set_tec_power(False)
+		output_file.write("UUT PT1000 path 0 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[0]) for t in tt ]))
+		output_file.write("UUT PT1000 path 1 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[1]) for t in tt ]))
+		output_file.write("UUT PT1000 path 2 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[2]) for t in tt ]))
+		output_file.write("UUT PT1000 path 3 (ohm):\t%s\n" % ("\t").join([ str(t.get_pt1000_resistance()[3]) for t in tt ]))
+	else:
+		output_file.write("Tester Vin (V):\t%s\n" % ("\t").join([ str(t.get_tester_vin()) for t in tt ]))
+		output_file.write("UUT0 Vdd  (V):\t%s\n" % ("\t").join([ str(t.get_uut_vin(0)) for t in tt ]))
+		output_file.write("UUT1 Vdd  (V):\t%s\n" % ("\t").join([ str(t.get_uut_vin(1)) for t in tt ]))
+		output_file.write("UUT0 Idd  (V):\t%s\n" % ("\t").join([ str(t.get_uut_iin(0)) for t in tt ]))
+		output_file.write("UUT1 Idd  (V):\t%s\n" % ("\t").join([ str(t.get_uut_iin(1)) for t in tt ]))
+		output_file.write("UUT0 Vbg  (V):\t%s\n" % ("\t").join([ str(t.get_uut_vbg(0)) for t in tt ]))
+		output_file.write("UUT1 Vbg  (V):\t%s\n" % ("\t").join([ str(t.get_uut_vbg(1)) for t in tt ]))
+
+
 	return 0
 
 
