@@ -1,4 +1,4 @@
-import daqd, tester_common
+import daqd, tester_common, tofhir2b
 import fe_tester, bga_tester
 import spi, i2c
 import time
@@ -92,3 +92,42 @@ class Connection(daqd.Connection):
 			self.__identify_testers()
 		return self.__testers
 
+	def initialize_burn_in(self):
+		self.__asic_module = tofhir2b
+		self.set_fe_power(True)
+
+		# Reset the ASICs configuration
+		for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 2, 0x0201, 0b00)
+		for k in range(10):
+			# Generate multiple resets to train the RESYNC receiver
+			for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b1)
+			for portID, slaveID in self.getActiveFEBDs(): self.write_config_register(portID, slaveID, 1, 0x300, 0b0)
+
+		for portID, slaveID in self.getActiveFEBDs():
+			tdc_clk_div, ddr, tx_nlinks = self.__getAsicLinkConfiguration(portID, slaveID)
+			gctx = self.__asic_module.AsicGlobalConfigTX()
+			c_tx_mode = 0b0000
+
+			# Select DDR mode
+			if ddr:
+				c_tx_mode |= 0b1000
+			else:
+				c_tx_mode |= 0b0000
+
+			gctx.setValue("c_tx_mode", c_tx_mode)
+			gctx.setValue("c_tx_clps", 1023)
+
+			gc = self.__asic_module.AsicGlobalConfig()
+			gc.setValue("Iref_cal_DAC", 187)
+
+			cc = self.__asic_module.AsicChannelConfig()
+
+			for attempt in range(4):
+				for chipID in range(32):
+					for busID in range(8):
+						self.__tofhir2_cmd(portID, slaveID, busID, chipID, 2*busID+chipID, 33, True, False, gctx)
+						self.__tofhir2_cmd(portID, slaveID, busID, chipID, 2*busID+chipID, 32, True, False, gc)
+						for channelID in range(32):
+							self.__tofhir2_cmd(portID, slaveID, busID, chipID, 2*busID+chipID, channelID, True, False, cc)
+
+		return None

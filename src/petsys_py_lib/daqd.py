@@ -1012,6 +1012,9 @@ class Connection(object):
 		
 		status, reply = reply[0], reply[1:]
 		
+		if not expect_reply and status == 0xE2:
+			status = 0x00
+			
 		if status != 0x00:
 			raise tofhir2.ConfigurationErrorStatus(portID, slaveID, busID, chipID, status)
 		
